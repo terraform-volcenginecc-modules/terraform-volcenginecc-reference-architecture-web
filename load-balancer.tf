@@ -94,6 +94,7 @@ resource "volcenginecc_clb_server_group" "this" {
   servers = var.autoscaling.enabled ? null : [for instance in values(local.web_instances) : {
     instance_id = instance.instance_id, type = "ecs", port = var.web_port, weight = 100
     ip          = instance.primary_network_interface.primary_ip_address
+    description = ""
   }]
   tags = local.tags
 }
@@ -110,8 +111,9 @@ resource "volcenginecc_clb_listener" "this" {
   acl_status                 = "on"
   acl_type                   = "white"
   acl_ids                    = [volcenginecc_clb_acl.this[0].acl_id]
+  # CLB 健康检查跟随后端组端口；HTTP 显式填写 8080 已实测被 API 拒绝。
   health_check = {
-    enabled           = "on", port = var.web_port, interval = 5, timeout = 3
+    enabled           = "on", interval = 5, timeout = 3
     healthy_threshold = 3, unhealthy_threshold = 3
     uri               = var.load_balancer.health_path, http_code = "http_2xx"
   }

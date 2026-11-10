@@ -3,7 +3,7 @@ provider "volcenginecc" {
   endpoints = var.cloudcontrol_endpoint == null ? null : { cloudcontrolapi = var.cloudcontrol_endpoint }
 }
 module "web" {
-  source = "./modules/reference-architecture-web"
+  source = "terraform-volcenginecc-modules/reference-architecture-web/volcenginecc"
 
   name        = var.deployment.name
   environment = "prod"
@@ -27,7 +27,7 @@ module "web" {
     image_id = var.deployment.app_image_id, instance_type = var.deployment.app_instance_type
   }
   key_pair_name = var.deployment.key_pair_name
-  nat           = { enabled = var.existing.vpc_id == null }
+  nat           = { enabled = var.existing.vpc_id == null, zone_key = "primary" }
   autoscaling   = { enabled = false }
   load_balancer = {
     kind               = var.load_balancer_kind, public = true, https = true

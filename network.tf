@@ -49,13 +49,16 @@ resource "volcenginecc_vpc_security_group" "this" {
   vpc_id              = local.vpc_id
   security_group_name = "${var.name}-${each.key}"
   # 对齐 security-group Module 的完整规则结构，明确 Optional+Computed 字段。
-  # 默认全放通出站规则不纳入配置；本架构仍要求最小权限出站。
+  # 平台创建时会追加优先级 100 的默认出站规则，兜底拒绝确保首次创建即满足最小权限。
   ingress_permissions = [for rule in local.ingress[each.key] : merge(rule, {
     direction = "ingress", prefix_list_id = "", source_group_id = ""
   })]
   egress_permissions = [for rule in concat(local.egress[each.key], [for rule in values(var.service_egress) : {
     cidr_ip = rule.cidr, protocol = rule.protocol, port_start = rule.port, port_end = rule.port
     policy  = "accept", priority = 1, description = "显式服务端点出站"
+    }], [{
+    cidr_ip = "0.0.0.0/0", protocol = "all", port_start = -1, port_end = -1
+    policy  = "drop", priority = 99, description = "拒绝未显式授权的出站流量"
     }]) : merge(rule, {
     direction = "egress", prefix_list_id = "", source_group_id = ""
   })]

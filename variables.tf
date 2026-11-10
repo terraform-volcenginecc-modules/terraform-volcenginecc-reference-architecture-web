@@ -238,13 +238,14 @@ variable "service_egress" {
   }
 }
 variable "nat" {
-  description = "可选公网 NAT：每区一个网关与出站 EIP，仅 Web/应用子网 SNAT；数据子网无公网默认路由，无 DNAT。复用 VPC 时须由调用方管理路由。"
+  description = "可选公网 NAT：每个 VPC 一个高可用网关与出站 EIP；启用时须用 zone_key 选择稳定的承载子网。仅 Web/应用子网 SNAT，数据子网无公网默认路由，无 DNAT。复用 VPC 时须由调用方管理路由。"
   type = object({
-    enabled = optional(bool, false), bandwidth = optional(number, 10)
+    enabled  = optional(bool, false), bandwidth = optional(number, 10)
+    zone_key = optional(string)
   })
   default = {}
   validation {
-    condition     = var.nat.bandwidth >= 1 && var.nat.bandwidth <= 200
-    error_message = "NAT 出站带宽必须为 1–200 Mbps。"
+    condition     = var.nat.bandwidth >= 1 && var.nat.bandwidth <= 200 && (!var.nat.enabled || var.nat.zone_key != null)
+    error_message = "NAT 出站带宽必须为 1–200 Mbps；启用 NAT 时必须提供 zone_key。"
   }
 }
