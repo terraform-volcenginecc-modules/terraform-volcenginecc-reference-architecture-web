@@ -61,8 +61,8 @@ variable "web" {
     disk_type      = optional(string, "ESSD_PL0")
   })
   validation {
-    condition     = var.web.count_per_zone >= 1 && floor(var.web.count_per_zone) == var.web.count_per_zone && var.web.disk_size >= 40
-    error_message = "Web 每区实例数必须为正整数，系统盘至少 40 GiB。"
+    condition     = var.web.count_per_zone >= 1 && var.web.count_per_zone <= 1024 && floor(var.web.count_per_zone) == var.web.count_per_zone && var.web.disk_size >= 40
+    error_message = "Web 每区实例数必须为 1–1024 的整数，系统盘至少 40 GiB。"
   }
 }
 variable "app" {
@@ -73,8 +73,8 @@ variable "app" {
     disk_type      = optional(string, "ESSD_PL0")
   })
   validation {
-    condition     = var.app.count_per_zone >= 1 && floor(var.app.count_per_zone) == var.app.count_per_zone && var.app.disk_size >= 40
-    error_message = "应用每区实例数必须为正整数，系统盘至少 40 GiB。"
+    condition     = var.app.count_per_zone >= 1 && var.app.count_per_zone <= 1024 && floor(var.app.count_per_zone) == var.app.count_per_zone && var.app.disk_size >= 40
+    error_message = "应用每区实例数必须为 1–1024 的整数，系统盘至少 40 GiB。"
   }
 }
 variable "key_pair_name" {

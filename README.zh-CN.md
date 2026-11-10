@@ -226,12 +226,12 @@ complete 支持已有网络/数据库/缓存 ID，以及可选 CLB 入口。复�
 | `zones.*.data_cidr` | string | 无 | 必填 IPv4 CIDR |
 | `web.image_id` | string | 无 | 必填预装 Web 镜像 |
 | `web.instance_type` | string | 无 | 必填可用规格 |
-| `web.count_per_zone` | number | 1 | 可选正整数；Web ASG 容量不使用此字段 |
+| `web.count_per_zone` | number | 1 | 可选 1–1024 整数；Web ASG 容量不使用此字段 |
 | `web.disk_size` | number | 40 | 可选，至少 40 GiB |
 | `web.disk_type` | string | "ESSD_PL0" | 可选 |
 | `app.image_id` | string | 无 | 必填预装应用镜像 |
 | `app.instance_type` | string | 无 | 必填可用规格 |
-| `app.count_per_zone` | number | 1 | 可选正整数 |
+| `app.count_per_zone` | number | 1 | 可选 1–1024 整数 |
 | `app.disk_size` | number | 40 | 可选，至少 40 GiB |
 | `app.disk_type` | string | "ESSD_PL0" | 可选 |
 | `load_balancer.kind` | string | "alb" | 可选 alb/clb |

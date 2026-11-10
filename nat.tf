@@ -28,8 +28,8 @@ resource "volcenginecc_natgateway_snatentry" "this" {
     for key, subnet in local.subnets : key => subnet
     if endswith(key, "-web") || endswith(key, "-app")
   } : {}
-  nat_gateway_id  = volcenginecc_natgateway_ngw.this[trimsuffix(trimsuffix(each.key, "-web"), "-app")].nat_gateway_id
-  eip_id          = volcenginecc_vpc_eip.nat[trimsuffix(trimsuffix(each.key, "-web"), "-app")].allocation_id
+  nat_gateway_id  = volcenginecc_natgateway_ngw.this[trimsuffix(each.key, endswith(each.key, "-web") ? "-web" : "-app")].nat_gateway_id
+  eip_id          = volcenginecc_vpc_eip.nat[trimsuffix(each.key, endswith(each.key, "-web") ? "-web" : "-app")].allocation_id
   subnet_id       = local.subnet_ids[each.key]
   snat_entry_name = "${var.name}-${each.key}"
 }

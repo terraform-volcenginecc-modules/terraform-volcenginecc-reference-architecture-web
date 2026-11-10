@@ -226,12 +226,12 @@ No SSH ingress is configured. Provider 0.0.73 can append unrestricted default eg
 | `zones.*.data_cidr` | string | none | Required IPv4 CIDR |
 | `web.image_id` | string | none | Required preinstalled Web image |
 | `web.instance_type` | string | none | Required available specification |
-| `web.count_per_zone` | number | 1 | Optional positive integer; ignored for Web ASG capacity |
+| `web.count_per_zone` | number | 1 | Optional integer 1–1024; ignored for Web ASG capacity |
 | `web.disk_size` | number | 40 | Optional; at least 40 GiB |
 | `web.disk_type` | string | "ESSD_PL0" | Optional |
 | `app.image_id` | string | none | Required preinstalled application image |
 | `app.instance_type` | string | none | Required available specification |
-| `app.count_per_zone` | number | 1 | Optional positive integer |
+| `app.count_per_zone` | number | 1 | Optional integer 1–1024 |
 | `app.disk_size` | number | 40 | Optional; at least 40 GiB |
 | `app.disk_type` | string | "ESSD_PL0" | Optional |
 | `load_balancer.kind` | string | "alb" | Optional alb/clb |
