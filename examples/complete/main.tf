@@ -3,7 +3,7 @@ provider "volcenginecc" {
   endpoints = var.cloudcontrol_endpoint == null ? null : { cloudcontrolapi = var.cloudcontrol_endpoint }
 }
 module "web" {
-  source = "terraform-volcenginecc-modules/reference-architecture-web/volcenginecc"
+  source = "./modules/reference-architecture-web"
 
   name        = var.deployment.name
   environment = "prod"
@@ -20,14 +20,15 @@ module "web" {
     }
   }
   web = {
-    image_id = var.deployment.web_image_id, instance_type = var.deployment.web_instance_type
+    image_id       = var.deployment.web_image_id, instance_type = var.deployment.web_instance_type
+    count_per_zone = 1
   }
   app = {
     image_id = var.deployment.app_image_id, instance_type = var.deployment.app_instance_type
   }
   key_pair_name = var.deployment.key_pair_name
   nat           = { enabled = var.existing.vpc_id == null }
-  autoscaling   = { enabled = true, min = 2, desired = 2, max = 6 }
+  autoscaling   = { enabled = false }
   load_balancer = {
     kind               = var.load_balancer_kind, public = true, https = true
     domain             = var.deployment.domain, certificate_id = var.deployment.certificate_id
@@ -47,7 +48,7 @@ module "web" {
   bucket_name              = var.deployment.bucket_name
   enable_logs              = true
   log_retention_days       = 90
-  deletion_protection      = var.deletion_protection
+  deletion_protection      = var.deletion_protection || !var.allow_protection_disable
   allow_protection_disable = var.allow_protection_disable
   service_egress           = var.service_egress
   monitoring               = var.monitoring

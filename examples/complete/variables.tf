@@ -18,16 +18,24 @@ variable "existing" {
   default = {}
 }
 variable "database_password" {
-  description = "新建 RDS 密码，复用时可省略。"
+  description = "RDS 密码，必须通过平台敏感变量或 TF_VAR_database_password 提供。"
   type        = string
   sensitive   = true
-  default     = null
+  nullable    = false
+  validation {
+    condition     = length(trimspace(var.database_password)) > 0
+    error_message = "database_password 必须通过平台敏感变量或 TF_VAR_database_password 提供。"
+  }
 }
 variable "cache_password" {
-  description = "新建 Redis 密码，复用时可省略。"
+  description = "Redis 密码，必须通过平台敏感变量或 TF_VAR_cache_password 提供。"
   type        = string
   sensitive   = true
-  default     = null
+  nullable    = false
+  validation {
+    condition     = length(trimspace(var.cache_password)) > 0
+    error_message = "cache_password 必须通过平台敏感变量或 TF_VAR_cache_password 提供。"
+  }
 }
 variable "service_egress" {
   description = "实际 DNS/TOS/TLS 端点的 CIDR、协议与端口；需具备对应私网路由。"

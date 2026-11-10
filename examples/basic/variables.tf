@@ -12,11 +12,21 @@ variable "database_password" {
   description = "RDS 密码，通过 TF_VAR_database_password 提供。"
   type        = string
   sensitive   = true
+  nullable    = false
+  validation {
+    condition     = length(trimspace(var.database_password)) > 0
+    error_message = "database_password 必须通过平台敏感变量或 TF_VAR_database_password 提供。"
+  }
 }
 variable "cache_password" {
   description = "Redis 密码，通过 TF_VAR_cache_password 提供。"
   type        = string
   sensitive   = true
+  nullable    = false
+  validation {
+    condition     = length(trimspace(var.cache_password)) > 0
+    error_message = "cache_password 必须通过平台敏感变量或 TF_VAR_cache_password 提供。"
+  }
 }
 variable "service_egress" {
   description = "目标环境 DNS/TOS/TLS 私网服务端点出站规则，具体来源见根 README。"
