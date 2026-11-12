@@ -97,7 +97,7 @@ terraform plan
 terraform destroy
 ```
 
-README 与两套 example 均通过 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc` 调用远程模块。该 Registry 地址需正式发布后才能安装，本次未核实发布状态或可用版本。
+README 与两套 example 均通过 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc` 调用远程模块。
 
 ## 3. 示例（Examples）
 
@@ -114,7 +114,7 @@ README 与两套 example 均通过 `terraform-volcenginecc-modules/reference-arc
 | Terraform | 源码约束 `>= 1.5.7, < 1.12.0`；项目固定基线 `= 1.5.7` |
 | `volcengine/volcenginecc` | 根模块 `>= 0.0.73`；两套 example 固定 `= 0.0.73` |
 
-源码允许的引擎范围比固定基线宽；本次文档更新保留实际约束，未调整版本文件。地域相关规格、证书、服务权限与配额由调用方核实。
+源码允许的引擎范围比固定基线宽。地域相关规格、证书、服务权限与配额由调用方核实。
 
 ## 5. Providers（Providers）
 
@@ -278,4 +278,4 @@ ALB 可接入 TLS 访问日志；创建 Topic 不等于应用已采集日志。C
 
 销毁受保护资源前，将 `deletion_protection=false`；生产还要显式设置 `allow_protection_disable=true`，审阅更新计划并核对 ECS/RDS/Redis/ALB 的实际保护状态。ALB 关闭保护更新可能出现替换计划，应先通过原生服务关闭对应 ALB 的 `DeleteProtection`，核对计划后再继续。清空 TOS 全部版本；RDS 最终备份可能保留，Redis 最终备份由服务保留七天。密码虽标记 sensitive，仍会写入 State，由调用方保管 State 和凭据。
 
-相同实现的隔离副本曾完成 basic/complete 空 State 一次 Apply 和应用初始化后的业务链路验证；当前 Registry 安装未验证。两套二次 `terraform plan` 各出现四项 RDS/TOS/安全组漂移，尚未达到 `No changes`；标准 Destroy 曾因 TOS/CLB 异步任务及 Redis 白名单解绑失败，后续重试清理不代表完整生命周期通过。生产平台测试还出现删除保护关闭、TOS 版本状态为空，生产使用前应核对原生服务状态。本次只修正文档，没有重新执行云验收。
+相同实现的隔离副本曾完成 basic/complete 空 State 一次 Apply 和应用初始化后的业务链路验证。两套二次 `terraform plan` 各出现四项 RDS/TOS/安全组漂移，尚未达到 `No changes`；标准 Destroy 曾因 TOS/CLB 异步任务及 Redis 白名单解绑失败，后续重试清理不代表完整生命周期通过。生产平台测试还出现删除保护关闭、TOS 版本状态为空，生产使用前应核对原生服务状态。

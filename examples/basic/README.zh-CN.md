@@ -6,7 +6,7 @@
 
 ## 2. 用法
 
-运行目录为完整仓库隔离副本中的 `examples/basic`。当前 `main.tf` 使用 Registry source，需模块正式发布后才能安装；本次未核实发布状态或模块版本。发布前本地测试仅将副本中的 `module.web.source` 改为 `../..`，保持仓库原始指引。本地调用不填写 `version`。
+运行目录为完整仓库隔离副本中的 `examples/basic`。`main.tf` 通过 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc` 调用远程三层 Web 模块。
 
 使用 Terraform `1.5.7`，准备本目录 `terraform.tfvars` 中的必填输入和两项敏感密码。镜像需提供 Web `8080`、`/health` 和 App `8080`；确认目标地域服务已开通、规格可用、私网端点路由及权限具备。完整新建需至少两个公网 EIP 配额，分别供 CLB 和 NAT 使用。入口白名单填实际访问请求的公网出口 CIDR。
 
@@ -38,7 +38,7 @@ terraform destroy
 | Terraform | `>= 1.5.7, < 1.12.0`；项目固定基线 `= 1.5.7` |
 | `volcengine/volcenginecc` | `= 0.0.73` |
 
-这是本目录 `versions.tf` 的实际约束，允许范围比固定基线宽；本次没有改动版本文件。
+这是本目录 `versions.tf` 的实际约束，允许范围比固定基线宽。
 
 ## 4. Providers
 
@@ -52,7 +52,7 @@ terraform destroy
 
 | 名称 | 说明 |
 |---|---|
-| `module.web` | 实际 source 为 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`，调用三层 Web 根模块；隔离副本本地测试用 `../..`。 |
+| `module.web` | source 为 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`，调用远程三层 Web 模块。 |
 
 本目录没有直接声明 Resource 或 Data Source。完整新建预期由模块管理 27 项资源：包括一台 Web、一台 App、四个子网、两个 SNAT 条目和一个 Web/App 路由表；ASG 关闭，不包含云服务隐式资源。
 
@@ -87,4 +87,4 @@ CLB HTTP 监听器通过后端组访问 Web `8080`，健康检查省略覆盖端
 
 NAT 只为 Web/App 建立 SNAT；data 仍继承系统路由表，可能含 NAT 服务自动加入的默认路由，当前未绑定独立隔离路由表。data 无 SNAT，不能把默认路由存在等同于公网可达，data 主动出网尚未直接验证。
 
-相同实现的隔离副本曾完成空 State 一次 Apply 与应用初始化后的业务验证，当前 Registry 安装未验证。Apply 后的 `terraform plan` 应无变化才满足幂等；已有结果仍有四项 RDS/TOS/安全组漂移。标准 Destroy 曾因 TOS 和 CLB 异步删除任务失败，后续重试清理不等于完整生命周期通过；RDS/Redis 最终备份可能按服务策略保留，Redis 为七天。本次文档检查不代表重新验收通过。
+相同实现的隔离副本曾完成空 State 一次 Apply 与应用初始化后的业务验证。Apply 后的 `terraform plan` 应无变化才满足幂等；已有结果仍有四项 RDS/TOS/安全组漂移。标准 Destroy 曾因 TOS 和 CLB 异步删除任务失败，后续重试清理不等于完整生命周期通过；RDS/Redis 最终备份可能按服务策略保留，Redis 为七天。

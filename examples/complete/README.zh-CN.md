@@ -6,7 +6,7 @@
 
 ## 2. 用法
 
-运行目录为完整仓库隔离副本中的 `examples/complete`。`main.tf` 当前使用 Registry source，需模块正式发布后才能安装；本次未核实发布状态或模块版本。发布前本地测试仅在副本中将 `module.web.source` 改为 `../..`，保持原仓库指引，本地 source 不带 `version`。
+运行目录为完整仓库隔离副本中的 `examples/complete`。`main.tf` 通过 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc` 调用远程三层 Web 模块。
 
 使用 Terraform `1.5.7`，准备本目录必填 `terraform.tfvars` 输入、两项敏感密码、两区规格和已预装 Web/App 的镜像。Web 提供 `8080` 和 `/health`，App 提供 `8080`。HTTPS 证书与域名匹配，至少一条监控规则使用已核实的官方指标与联系人组；确认服务、私网端点路由及权限可用。默认完整新建需至少三个公网 EIP 配额，供双区 ALB 与 NAT 使用。
 
@@ -53,7 +53,7 @@ State、锁文件、缓存、计划与日志保存在隔离副本或独立 backe
 | Terraform | `>= 1.5.7, < 1.12.0`；项目固定基线 `= 1.5.7` |
 | `volcengine/volcenginecc` | `= 0.0.73` |
 
-这是本目录 `versions.tf` 的实际约束，允许范围比固定基线宽；本次没有改动版本文件。
+这是本目录 `versions.tf` 的实际约束，允许范围比固定基线宽。
 
 ## 4. Providers
 
@@ -67,7 +67,7 @@ State、锁文件、缓存、计划与日志保存在隔离副本或独立 backe
 
 | 名称 | 说明 |
 |---|---|
-| `module.web` | 实际 source 为 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`，调用三层 Web 根模块；隔离副本本地测试用 `../..`。 |
+| `module.web` | source 为 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`，调用远程三层 Web 模块。 |
 
 本目录没有直接 Resource 或 Data Source。默认 ALB、全部新建且仅一条监控规则时，预期由模块管理 37 项资源；包括八个子网、四台静态 ECS、一个 NAT、四个 SNAT 条目及两个 Web/App 路由表。ASG 关闭；复用资源或增加监控规则会改变数量，不包含隐式资源。
 
@@ -123,6 +123,6 @@ VPC 为 `10.20.0.0/16`。primary 的 edge/web/app/data 为 `10.20.0.0/24` 至 `1
 
 两区静态 ECS 避开 Provider `0.0.73` 的 ASG 启动模板回读异常，ASG 路径尚未通过。CLB 不配置访问日志或自身删除保护；HTTPS 和业务端口仍需匹配证书与 Web 服务。安全组只允许业务和显式服务流量，优先级 99 拒绝不会被平台优先级 100 允许绕过。
 
-相同实现的隔离副本曾完成空 State 一次 Apply 和初始化后的双区业务验证，当前 Registry 安装未验证。Apply 后 `terraform plan` 应无变化才满足幂等；已有结果仍有四项 RDS/TOS/安全组漂移。生产平台测试出现实际删除保护关闭及 TOS 版本状态为空，不能将配置开启视为服务已生效。
+相同实现的隔离副本曾完成空 State 一次 Apply 和初始化后的双区业务验证。Apply 后 `terraform plan` 应无变化才满足幂等；已有结果仍有四项 RDS/TOS/安全组漂移。生产平台测试出现实际删除保护关闭及 TOS 版本状态为空，不能将配置开启视为服务已生效。
 
-标准 Destroy 曾因 TOS 异步删除及 Redis 白名单解绑失败，后续重试清理不代表完整生命周期通过。ALB 关闭保护可能触发替换计划，按第 2 节先核对并关闭原生保护；销毁前清空 TOS 全部版本，RDS/Redis 最终备份可能保留，Redis 为七天。本次文档检查没有重新执行云验收。
+标准 Destroy 曾因 TOS 异步删除及 Redis 白名单解绑失败，后续重试清理不代表完整生命周期通过。ALB 关闭保护可能触发替换计划，按第 2 节先核对并关闭原生保护；销毁前清空 TOS 全部版本，RDS/Redis 最终备份可能保留，Redis 为七天。

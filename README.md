@@ -97,7 +97,7 @@ Expect `No changes`. Before destruction, remove bucket objects, historical versi
 terraform destroy
 ```
 
-The README and both examples call the remote module through `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`. Registry installation requires a published module; publication status and available versions were not verified in this update.
+The README and both examples call the remote module through `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`.
 
 ## 3. Examples
 
@@ -114,7 +114,7 @@ Both examples disable ASG. With all resources newly created and one monitoring r
 | Terraform | Source constraint `>= 1.5.7, < 1.12.0`; fixed project baseline `= 1.5.7` |
 | `volcengine/volcenginecc` | Root module `>= 0.0.73`; both examples pin `= 0.0.73` |
 
-The source allows a broader engine range than the fixed baseline. This documentation update preserves the actual constraint and does not change version files. The caller verifies regional specifications, certificates, service permissions and quotas.
+The source allows a broader engine range than the fixed baseline. The caller verifies regional specifications, certificates, service permissions and quotas.
 
 ## 5. Providers
 
@@ -278,4 +278,4 @@ ALB can send access logs to TLS; creating topics does not install application lo
 
 Before deleting protected resources, set `deletion_protection=false`; production also requires `allow_protection_disable=true`. Review the update Plan and verify actual ECS/RDS/Redis/ALB protection. An ALB protection update may plan replacement: first disable `DeleteProtection` for that ALB through its native service, then review the Plan before proceeding. Remove all TOS versions. RDS final backups may remain, and Redis final backups are retained for seven days. Sensitive passwords still enter State; the caller protects State and credentials.
 
-Isolated copies of the same implementation previously completed one Apply from empty State for basic/complete and business checks after application initialization; current Registry installation is unverified. Each second `terraform plan` still contains four RDS/TOS/security-group drifts and has not reached `No changes`. Standard Destroy failed on asynchronous TOS/CLB tasks and Redis allow-list unbinding; later cleanup retries do not establish a successful full lifecycle. Production platform tests also showed disabled deletion protection and an empty TOS version status; verify native service settings before production use. This update changes documentation without rerunning cloud acceptance.
+Isolated copies of the same implementation previously completed one Apply from empty State for basic/complete and business checks after application initialization. Each second `terraform plan` still contains four RDS/TOS/security-group drifts and has not reached `No changes`. Standard Destroy failed on asynchronous TOS/CLB tasks and Redis allow-list unbinding; later cleanup retries do not establish a successful full lifecycle. Production platform tests also showed disabled deletion protection and an empty TOS version status; verify native service settings before production use.
