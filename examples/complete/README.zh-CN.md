@@ -1,5 +1,7 @@
 # COMPLETE Web 架构 示例
 
+模块 source 为 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`，模块版本约束为 `version = "~> 1.0"`（>= 1.0.0、< 2.0.0），与 Provider 版本要求分别配置。Registry 安装要求该范围内已有已发布模块版本。
+
 ## 1. 概述
 
 本示例配置双区生产架构：八个子网、两台静态 Web 和两台 App、公网 HTTPS ALB、跨区 MySQL/Redis、一个共享 NAT、TOS、90 天 TLS 与显式监控。相较 basic，增加证书、域名、跨区数据、备份和删除保护配置，支持复用已有网络及数据实例。调用方准备地域依赖、两项密码、入口来源、端点出站、联系人组和归属标签，并完成应用及日志配置。

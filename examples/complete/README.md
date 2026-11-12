@@ -1,5 +1,7 @@
 # COMPLETE Web architecture Example
 
+Module source: `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`; module version: `version = "~> 1.0"` (>= 1.0.0, < 2.0.0). Provider version requirements are separate. Registry installation requires a published module release in this range.
+
 ## 1. Overview
 
 Configure two-zone production infrastructure with eight subnets, two static Web and two App instances, public HTTPS ALB, cross-zone MySQL/Redis, one shared NAT, TOS, 90-day TLS and explicit monitoring. Compared with basic, it adds certificates, a domain, cross-zone data, backups and protection settings, and supports existing network/data IDs. Prepare regional dependencies, both passwords, ingress sources, endpoint egress, contact groups and ownership tags; configure applications and logs.

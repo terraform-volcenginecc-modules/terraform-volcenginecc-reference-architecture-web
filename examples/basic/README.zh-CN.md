@@ -1,5 +1,7 @@
 # BASIC Web 架构 示例
 
+模块 source 为 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`，模块版本约束为 `version = "~> 1.0"`（>= 1.0.0、< 2.0.0），与 Provider 版本要求分别配置。Registry 安装要求该范围内已有已发布模块版本。
+
 ## 1. 概述
 
 本示例创建单区开发环境：四层子网、公网 HTTP CLB、一台 Web 和一台 App、私网单节点 MySQL/Redis、一个出站 NAT、TOS 与 TLS。相较 complete，不配置双区、HTTPS、监控和生产删除保护。调用方准备可用区、预装服务的镜像、规格、密钥对、Bucket 名称、两项密码、入口来源及服务出站规则；应用连接和日志采集由调用方配置。

@@ -2,6 +2,8 @@
 
 A Volcengine module for three-tier Web infrastructure, covering networking, compute, ingress, data, storage and logs.
 
+Module source: `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`; module version: `version = "~> 1.0"` (>= 1.0.0, < 2.0.0). Provider version requirements are separate. Registry installation requires a published module release in this range.
+
 ## 1. Overview
 
 Build single-zone development or multi-zone production infrastructure with edge, web, app and data subnets: load balancer → Web → App → private MySQL/Redis, plus TOS, TLS and optional monitoring, Web ASG and NAT. Public ingress uses only the load balancer; ECS has no public EIP, and NAT configures SNAT only for Web/App. Existing network and data IDs remain caller-owned. The caller installs applications and configures DNS, certificates and log collection.

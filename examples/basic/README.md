@@ -1,5 +1,7 @@
 # BASIC Web architecture Example
 
+Module source: `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`; module version: `version = "~> 1.0"` (>= 1.0.0, < 2.0.0). Provider version requirements are separate. Registry installation requires a published module release in this range.
+
 ## 1. Overview
 
 Create a single-zone development environment with four subnet tiers, public HTTP CLB, one Web and one App instance, private single-node MySQL/Redis, one egress NAT, TOS and TLS. Unlike complete, it omits two-zone deployment, HTTPS, monitoring and production deletion protection. Prepare zones, service images, specifications, a key pair, a bucket name, both passwords, ingress sources and service egress rules. The caller configures application connections and log collection.

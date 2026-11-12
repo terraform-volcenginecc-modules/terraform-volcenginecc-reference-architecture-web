@@ -2,6 +2,8 @@
 
 火山引擎三层 Web 基础设施模块，统一配置网络、计算、入口、数据、存储与日志。
 
+模块 source 为 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`，模块版本约束为 `version = "~> 1.0"`（>= 1.0.0、< 2.0.0），与 Provider 版本要求分别配置。Registry 安装要求该范围内已有已发布模块版本。
+
 ## 1. 概述（Overview）
 
 模块支持单区开发和多区生产环境，每区划分 edge、web、app、data 四层子网，按负载均衡 → Web → App → 私网 MySQL/Redis 的关系配置资源，配套 TOS、TLS 和可选监控、Web ASG、NAT。公网入站仅通过负载均衡，ECS 不绑定公网 EIP；NAT 仅为 Web/App 配置 SNAT。已有网络和数据资源可通过 ID 复用，仍由调用方维护；应用安装、DNS、证书及日志采集配置由调用方完成。
