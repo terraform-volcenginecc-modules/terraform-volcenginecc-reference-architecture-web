@@ -10,7 +10,7 @@ Build single-zone development or multi-zone production infrastructure with edge,
 
 Prepare zone IDs, images with Web/App services installed, ECS and MySQL specifications, an existing key pair and a region-unique bucket name. Web should listen on `8080` and serve `/health`; App should listen on `8080`. Use the visitors' actual public egress CIDRs for ingress and actual DNS/TOS/TLS endpoint CIDRs, protocols and ports for service egress. Confirm routes, permissions, service activation and quotas.
 
-This local configuration runs in `examples/basic` of an isolated full repository copy, where `source = "../.."` refers to the copied root module. Replace that copied directory's existing caller `.tf` files with this complete configuration to avoid duplicate variable or provider declarations. It demonstrates a minimal private HTTP ALB invocation. The existing basic example uses a public HTTP CLB and different ingress settings.
+This configuration uses the same remote Registry module source as `main.tf` in both examples. Save this complete configuration in a separate caller directory to avoid duplicate variable or provider declarations. It demonstrates a minimal private HTTP ALB invocation. The existing basic example uses a public HTTP CLB and different ingress settings.
 
 ```hcl
 terraform {
@@ -49,7 +49,7 @@ provider "volcenginecc" {
 }
 
 module "web" {
-  source = "../.."
+  source = "terraform-volcenginecc-modules/reference-architecture-web/volcenginecc"
 
   name = var.deployment.name
   zones = {
@@ -76,7 +76,7 @@ module "web" {
 }
 ```
 
-Inject credentials through the provider-supported `VOLCENGINE_ACCESS_KEY` and `VOLCENGINE_SECRET_KEY`; supply passwords through `TF_VAR_database_password`, `TF_VAR_cache_password` or platform sensitive variables. Use Terraform `1.5.7` in the isolated copy with the required `terraform.tfvars` and a separate State/backend. Keep real inputs and passwords out of the README and Git.
+Inject credentials through the provider-supported `VOLCENGINE_ACCESS_KEY` and `VOLCENGINE_SECRET_KEY`; supply passwords through `TF_VAR_database_password`, `TF_VAR_cache_password` or platform sensitive variables. Use Terraform `1.5.7` in the caller directory with the required `terraform.tfvars` and a separate State/backend. Keep real inputs and passwords out of the README and Git.
 
 ```bash
 terraform init
@@ -97,7 +97,7 @@ Expect `No changes`. Before destruction, remove bucket objects, historical versi
 terraform destroy
 ```
 
-Both repository examples retain the actual source `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`. Registry installation requires a published module; publication status and available versions were not verified in this update. For local testing, use a full isolated repository copy and change only the copied example source to `../..`, without a Registry `version`.
+The README and both examples call the remote module through `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`. Registry installation requires a published module; publication status and available versions were not verified in this update.
 
 ## 3. Examples
 
