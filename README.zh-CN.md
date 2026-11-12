@@ -49,7 +49,8 @@ provider "volcenginecc" {
 }
 
 module "web" {
-  source = "../.."
+  source  = "terraform-volcenginecc-modules/reference-architecture-web/volcenginecc"
+  version = "~> 1.0"
 
   name = var.deployment.name
   zones = {
