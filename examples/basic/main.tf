@@ -21,7 +21,7 @@ module "web" {
     image_id = var.deployment.app_image_id, instance_type = var.deployment.app_instance_type
   }
   key_pair_name = var.deployment.key_pair_name
-  nat           = { enabled = true }
+  nat           = { enabled = true, zone_key = "primary" }
   load_balancer = {
     kind               = "clb", public = true, https = false
     allowed_cidrs      = var.deployment.allowed_cidrs

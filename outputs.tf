@@ -41,10 +41,14 @@ output "storage_and_logs" {
   }
 }
 output "nat" {
-  description = "仅出站 NAT 网关、EIP、SNAT 与私网路由表；不开启时为空映射。"
+  description = "仅出站 NAT 网关、EIP、SNAT 与私网路由表；各逻辑可用区映射到同一高可用 NAT，不开启时为空映射。"
   value = {
-    gateway_ids     = { for key, item in volcenginecc_natgateway_ngw.this : key => item.nat_gateway_id }
-    eip_ids         = { for key, item in volcenginecc_vpc_eip.nat : key => item.allocation_id }
+    gateway_ids = var.nat.enabled ? {
+      for key in keys(var.zones) : key => volcenginecc_natgateway_ngw.this[local.nat_gateway_key].nat_gateway_id
+    } : {}
+    eip_ids = var.nat.enabled ? {
+      for key in keys(var.zones) : key => volcenginecc_vpc_eip.nat[local.nat_gateway_key].allocation_id
+    } : {}
     snat_ids        = { for key, item in volcenginecc_natgateway_snatentry.this : key => item.snat_entry_id }
     route_table_ids = { for key, item in volcenginecc_vpc_route_table.private : key => item.route_table_id }
   }

@@ -1,90 +1,90 @@
-# Basic Web 架构
+# BASIC Web 架构 示例
 
-单可用区开发示例，包含公网 HTTP CLB、私网 Web/应用 ECS、私网单节点 MySQL/Redis、出站 NAT、私有 TOS 与 TLS 日志。
+## 1. 概述
 
-在 10.20.0.0/16 下规划 27 个 managed resource、四层子网：edge 10.20.0.0/24、web 10.20.1.0/24、app 10.20.2.0/24、data 10.20.3.0/24。一台 Web ECS 和一台应用 ECS 均无公网 EIP。Web/应用使用 SNAT；数据子网不配置 Module 管理的公网默认路由。监听 ACL 限制客户端，Web/应用安全组和数据白名单限制层间流量。CLB 官方服务网段为 100.64.0.0/10。HTTP 和单区数据适用于开发；MySQL 每日备份，Standalone Redis 不支持备份。
+本示例创建单区开发环境：四层子网、公网 HTTP CLB、一台 Web 和一台 App、私网单节点 MySQL/Redis、一个出站 NAT、TOS 与 TLS。相较 complete，不配置双区、HTTPS、监控和生产删除保护。调用方准备可用区、预装服务的镜像、规格、密钥对、Bucket 名称、两项密码、入口来源及服务出站规则；应用连接和日志采集由调用方配置。
 
-调用示例管理 Provider，使用 `source = "terraform-volcenginecc-modules/reference-architecture-web/volcenginecc"`。模块尚未发布，Registry 安装未验证，不填写虚构发布版本。静态验证仅在临时副本改写 source。引擎约束为 >= 1.5.7, < 1.12.0；精确验证目标为 Terraform 1.5.7 和 OpenTofu 1.11.8，使用 Registry Provider 0.0.73。
+## 2. 用法
 
-准备已核实的地域/可用区、提供 8080 和 /health 的预装 Web/应用镜像、可用 ECS/RDS 规格、已有密钥对、已开通服务、权限和配额。通过 service_egress 提供实际私网 DNS/TOS/TLS 端点 CIDR，并准备路由；NAT 本身不授予端点访问权限。应用代理/数据连接和日志 Agent 自行配置。
+运行目录为完整仓库隔离副本中的 `examples/basic`。当前 `main.tf` 使用 Registry source，需模块正式发布后才能安装；本次未核实发布状态或模块版本。发布前本地测试仅将副本中的 `module.web.source` 改为 `../..`，保持仓库原始指引。本地调用不填写 `version`。
 
-| 输入 | 类型 | 默认值 / 条件 |
-|---|---|---|
-| `deployment` | object | 必填，字段如下 |
-| `database_password` | string, sensitive | 必填，通过 TF_VAR_database_password 提供 |
-| `cache_password` | string, sensitive | 必填，通过 TF_VAR_cache_password 提供 |
-| `service_egress` | map(object({cidr=string, protocol=string, port=number})) | 必填，实际 IPv4 CIDR、tcp/udp、整数 1–65535 |
-| `tags` | map(string) | {}；Project/Environment 由 Module 设置 |
-| `cloudcontrol_endpoint` | string | null，默认线上 API 端点 |
-
-| Deployment 字段 | 类型 | 条件 |
-|---|---|---|
-| `deployment.name` | string | 必填稳定名称，3–31 位小写字母/数字/连字符，字母开头 |
-| `deployment.region` | string | 必填已核实地域 |
-| `deployment.zone_id` | string | 必填可用区 |
-| `deployment.web_image_id` | string | 必填预装 Web 镜像 |
-| `deployment.app_image_id` | string | 必填预装应用镜像 |
-| `deployment.web_instance_type` | string | 必填可用 Web 规格 |
-| `deployment.app_instance_type` | string | 必填可用应用规格 |
-| `deployment.key_pair_name` | string | 必填已有密钥对 |
-| `deployment.database_node_spec` | string | 必填可用 MySQL 规格 |
-| `deployment.bucket_name` | string | 必填地域唯一 Bucket 名称 |
-| `deployment.allowed_cidrs` | set(string) | 必填非空显式客户端 IPv4 CIDR |
-
-在私有 deployment.tfvars 中填写实际 deployment/service_egress/tags。原样使用 VOLCENGINE_ACCESS_KEY、VOLCENGINE_SECRET_KEY，凭据和真实输入文件不进入 Git。发布后在 examples/basic 中选择一个引擎及其独立 State 执行：
+使用 Terraform `1.5.7`，准备本目录 `terraform.tfvars` 中的必填输入和两项敏感密码。镜像需提供 Web `8080`、`/health` 和 App `8080`；确认目标地域服务已开通、规格可用、私网端点路由及权限具备。完整新建需至少两个公网 EIP 配额，分别供 CLB 和 NAT 使用。入口白名单填实际访问请求的公网出口 CIDR。
 
 ```bash
 terraform init
-terraform plan -var-file=deployment.tfvars -out=deployment.tfplan
-terraform apply deployment.tfplan
-terraform plan -var-file=deployment.tfvars
+terraform plan -out=部署计划.tfplan
+terraform apply 部署计划.tfplan
 terraform output -json architecture
 ```
 
-```bash
-tofu init
-tofu plan -var-file=deployment.tfvars -out=deployment.tfplan
-tofu apply deployment.tfplan
-tofu plan -var-file=deployment.tfvars
-tofu output -json architecture
-```
-
-architecture 对象包含根模块的 network、compute、entrypoint、data、storage_and_logs，不转发 nat。使用 CLB 公网 IP 访问入口，使用私网接口/数据地址配置应用，使用存储/日志 ID 集成服务。此配置的 ASG ID、domain、ALB DNS 为 null，监控 IDs 为空，不输出密码。验证入口和 ACL 拒绝路径、Web 到应用及应用到 MySQL/Redis 的连接、TOS 权限、TLS 日志、二次 Plan No changes。
-
-保留必要数据，清空 Bucket 及所有版本，再销毁并查询 managed resource、服务隐式资源和备份确认彻底移除；State 空不能单独作为依据。
+使用输出配置 Web 代理、App 的 MySQL/Redis 连接、TOS 访问及日志 Agent。依次验证公网 HTTP、Web → App → MySQL/Redis、Web 数据层隔离和显式 NAT 出站，再运行：
 
 ```bash
-terraform destroy -var-file=deployment.tfvars
+terraform plan
 ```
+
+预期为 `No changes`，当前已知漂移见第 9 节。测试结束后核对销毁范围，清空 Bucket 的全部对象和版本；如另行开启删除保护，先关闭并更新后再执行：
 
 ```bash
-tofu destroy -var-file=deployment.tfvars
+terraform destroy
 ```
 
-安全组两阶段维护：沿用 security-group/examples 的“创建后回读，再维护并检查最终 Plan”流程。本模块已显式填写规则十字段，首次创建后平台仍可能附加默认全放通出站。先通过输出的安全组 ID 查询实际规则，再对已创建的 Web/App 安全组执行维护 Plan；确认仅原地删除配置外默认规则、保留业务和 service_egress 规则，且没有新增或替换后，才 Apply。本模块没有 system_default_egress_rules 输入，无需把全放通规则加入期望配置。complete 最终复测在第二阶段维护后，入站/出站十字段校验 4/4 通过。
+隔离副本承载 State、锁文件、缓存、计划和日志，避免混入待交付源码。
 
-以下命令适用于调用名 module.web，仅用于首次创建后的定向维护；若地址不同，按实际 State 地址调整。若 Plan 包含创建/替换或安全组仍 tainted，先排查，不能直接应用。维护完成后必须运行无 target 的普通 Plan，并通过云端查询比较完整规则集合；exit 0 才代表整体 No changes。其他资源漂移不能因安全组通过而判定消失。OpenTofu 命令是等价操作说明，真实云维护仅验证了 Terraform 1.5.7。
+## 3. 依赖要求
 
-```bash
-terraform plan -var-file=deployment.tfvars \
-  -target='module.web.volcenginecc_vpc_security_group.this["web"]' \
-  -target='module.web.volcenginecc_vpc_security_group.this["app"]' \
-  -out=sg-maintenance.tfplan
-terraform apply sg-maintenance.tfplan
-terraform plan -var-file=deployment.tfvars -detailed-exitcode
-```
+| 名称 | 版本 |
+|---|---|
+| Terraform | `>= 1.5.7, < 1.12.0`；项目固定基线 `= 1.5.7` |
+| `volcengine/volcenginecc` | `= 0.0.73` |
 
-```bash
-tofu plan -var-file=deployment.tfvars \
-  -target='module.web.volcenginecc_vpc_security_group.this["web"]' \
-  -target='module.web.volcenginecc_vpc_security_group.this["app"]' \
-  -out=sg-maintenance.tfplan
-tofu apply sg-maintenance.tfplan
-tofu plan -var-file=deployment.tfvars -detailed-exitcode
-```
+这是本目录 `versions.tf` 的实际约束，允许范围比固定基线宽；本次没有改动版本文件。
 
-其余限制：创建前用官方 DescribeImages 按 InstanceType 过滤兼容镜像，不能仅按 OS 名选择；最终 complete 使用兼容 Debian10 镜像，两台应用 ECS 创建成功，basic 的镜像不匹配未单独重测。同 VPC 多 NAT 若 ResourceConflict，确认已有网关和在途操作，再重新 Plan；可在审阅后用 -parallelism=1 串行重试，但本轮未验证该方式能使完整部署成功。启动模板 volumes/network_interfaces 回读 null 尚无已验证规避，Web ASG 与 HTTPS 入口仍未通过。RDS public_download_enable=false 实际仍为 true，TOS acl_grant 回读 null（独立 ACL 仅 Owner FULL_CONTROL）；不能用 ignore_changes 将这些差异判为已修复。维护后没有整体 No changes 的证据。
+## 4. Providers
 
-最终复测：basic 计划 27 个资源，23 个对象进入 State，因镜像/规格不匹配未完成部署。原生 Destroy 重试 exit 0；30 个已知对象均不存在，MySQL 补偿后最终 MySQL/Redis 备份均为零。
+| 名称 | 来源 |
+|---|---|
+| `volcenginecc` | `volcengine/volcenginecc` |
 
-本地验收证据独立留存。Registry Module 消费及 OpenTofu 云生命周期仍未验证。
+本目录配置地域和可选 Cloud Control 端点，无 alias；凭据由运行环境提供。
+
+## 5. 资源
+
+| 名称 | 说明 |
+|---|---|
+| `module.web` | 实际 source 为 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`，调用三层 Web 根模块；隔离副本本地测试用 `../..`。 |
+
+本目录没有直接声明 Resource 或 Data Source。完整新建预期由模块管理 27 项资源：包括一台 Web、一台 App、四个子网、两个 SNAT 条目和一个 Web/App 路由表；ASG 关闭，不包含云服务隐式资源。
+
+## 6. 输入
+
+| 名称 | 说明 |
+|---|---|
+| `deployment` | 必填对象：`name`、`region`、`zone_id`、`web_image_id`、`app_image_id`、`web_instance_type`、`app_instance_type`、`key_pair_name`、`database_node_spec`、`bucket_name` 均为字符串，`allowed_cidrs` 为非空 `set(string)`；填写目标地域真实依赖和入口来源。 |
+| `database_password` | 必填敏感字符串，非 null、非空白；通过 `TF_VAR_database_password` 或平台敏感变量提供，满足 MySQL 密码规则。 |
+| `cache_password` | 必填敏感字符串，非 null、非空白；通过 `TF_VAR_cache_password` 或平台敏感变量提供，满足 Redis 密码规则。 |
+| `service_egress` | 必填 `map(object({cidr=string, protocol=string, port=number}))`；按实际 DNS/TOS/TLS 等端点填写，CIDR 合法、协议 tcp/udp、端口为 1–65535 的整数，并准备对应路由。 |
+| `tags` | 可选 `map(string)`，默认 `{}`；填写 Owner/CostCenter 等标签，Project/Environment 由模块设置。 |
+| `cloudcontrol_endpoint` | 可选字符串，默认 `null` 使用 Provider 默认端点；仅在明确需要时设置 Cloud Control API 地址。 |
+
+VPC 固定为 `10.20.0.0/16`，primary 的 edge/web/app/data 分别为 `10.20.0.0/24` 至 `10.20.3.0/24`。本示例没有已有资源复用输入。Web/App 均每区一台、40 GiB ESSD_PL0 系统盘，MySQL 默认 100 GiB、7 天备份；开发 Redis 为单节点，不配置备份。CLB 与 NAT 默认带宽各 10 Mbps，TLS 默认保留 30 天。
+
+## 7. 输出
+
+| 名称 | 说明 |
+|---|---|
+| `architecture` | 对象，包含 `network`、`compute`、`entrypoint`、`data`、`storage_and_logs`；使用私网接口和数据端点配置应用，使用 CLB 公网地址访问入口，使用 Bucket/TLS ID 配置存储与采集；未转发根模块 `nat`。 |
+
+## 8. 示例
+
+本目录即为 basic 示例，适合单区开发及最小三层链路验证。需要双区、HTTPS、跨区数据实例和监控时使用 complete，并准备其额外输入。
+
+## 9. 说明
+
+凭据通过 `VOLCENGINE_ACCESS_KEY`、`VOLCENGINE_SECRET_KEY` 等 Provider 支持的运行环境方式注入，密码使用敏感变量；State 仍保存敏感值，应由调用方保管。应用安装、连接、日志 Agent 和私网运维通道由调用方准备，没有默认 SSH 入站规则。
+
+CLB HTTP 监听器通过后端组访问 Web `8080`，健康检查省略覆盖端口并随从后端。Web 安全组来源固定为 `100.64.0.0/10`；服务出站仅放行显式规则，优先级 99 的拒绝阻止平台优先级 100 的默认允许规则。单一入口 CIDR 只放行对应出口，换网络或多人访问要维护白名单。
+
+NAT 只为 Web/App 建立 SNAT；data 仍继承系统路由表，可能含 NAT 服务自动加入的默认路由，当前未绑定独立隔离路由表。data 无 SNAT，不能把默认路由存在等同于公网可达，data 主动出网尚未直接验证。
+
+相同实现的隔离副本曾完成空 State 一次 Apply 与应用初始化后的业务验证，当前 Registry 安装未验证。Apply 后的 `terraform plan` 应无变化才满足幂等；已有结果仍有四项 RDS/TOS/安全组漂移。标准 Destroy 曾因 TOS 和 CLB 异步删除任务失败，后续重试清理不等于完整生命周期通过；RDS/Redis 最终备份可能按服务策略保留，Redis 为七天。本次文档检查不代表重新验收通过。

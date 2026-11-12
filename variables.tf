@@ -61,8 +61,8 @@ variable "web" {
     disk_type      = optional(string, "ESSD_PL0")
   })
   validation {
-    condition     = var.web.count_per_zone >= 1 && floor(var.web.count_per_zone) == var.web.count_per_zone && var.web.disk_size >= 40
-    error_message = "Web 每区实例数必须为正整数，系统盘至少 40 GiB。"
+    condition     = var.web.count_per_zone >= 1 && var.web.count_per_zone <= 1024 && floor(var.web.count_per_zone) == var.web.count_per_zone && var.web.disk_size >= 40
+    error_message = "Web 每区实例数必须为 1–1024 的整数，系统盘至少 40 GiB。"
   }
 }
 variable "app" {
@@ -73,8 +73,8 @@ variable "app" {
     disk_type      = optional(string, "ESSD_PL0")
   })
   validation {
-    condition     = var.app.count_per_zone >= 1 && floor(var.app.count_per_zone) == var.app.count_per_zone && var.app.disk_size >= 40
-    error_message = "应用每区实例数必须为正整数，系统盘至少 40 GiB。"
+    condition     = var.app.count_per_zone >= 1 && var.app.count_per_zone <= 1024 && floor(var.app.count_per_zone) == var.app.count_per_zone && var.app.disk_size >= 40
+    error_message = "应用每区实例数必须为 1–1024 的整数，系统盘至少 40 GiB。"
   }
 }
 variable "key_pair_name" {
@@ -238,13 +238,14 @@ variable "service_egress" {
   }
 }
 variable "nat" {
-  description = "可选公网 NAT：每区一个网关与出站 EIP，仅 Web/应用子网 SNAT；数据子网无公网默认路由，无 DNAT。复用 VPC 时须由调用方管理路由。"
+  description = "可选公网 NAT：每个 VPC 一个高可用网关与出站 EIP；启用时须用 zone_key 选择稳定的承载子网。仅 Web/应用子网 SNAT，数据子网无公网默认路由，无 DNAT。复用 VPC 时须由调用方管理路由。"
   type = object({
-    enabled = optional(bool, false), bandwidth = optional(number, 10)
+    enabled  = optional(bool, false), bandwidth = optional(number, 10)
+    zone_key = optional(string)
   })
   default = {}
   validation {
-    condition     = var.nat.bandwidth >= 1 && var.nat.bandwidth <= 200
-    error_message = "NAT 出站带宽必须为 1–200 Mbps。"
+    condition     = var.nat.bandwidth >= 1 && var.nat.bandwidth <= 200 && (!var.nat.enabled || var.nat.zone_key != null)
+    error_message = "NAT 出站带宽必须为 1–200 Mbps；启用 NAT 时必须提供 zone_key。"
   }
 }

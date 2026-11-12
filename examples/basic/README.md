@@ -1,90 +1,90 @@
-# Basic Web architecture
+# BASIC Web architecture Example
 
-A single-zone development example with a public HTTP CLB, private Web/application ECS, private single-node MySQL/Redis, outbound NAT, private TOS and TLS logs.
+## 1. Overview
 
-It plans 27 managed resources across four subnets in 10.20.0.0/16: edge 10.20.0.0/24, web 10.20.1.0/24, app 10.20.2.0/24 and data 10.20.3.0/24. One Web ECS and one application ECS have no public EIP. Web/application use SNAT; the data subnet has no module-managed public default route. Listener ACL limits clients; Web/app security groups and data allow lists constrain inter-tier traffic. The official CLB service range is 100.64.0.0/10. HTTP and single-zone data are development choices. MySQL has daily backups; standalone Redis has no backup support.
+Create a single-zone development environment with four subnet tiers, public HTTP CLB, one Web and one App instance, private single-node MySQL/Redis, one egress NAT, TOS and TLS. Unlike complete, it omits two-zone deployment, HTTPS, monitoring and production deletion protection. Prepare zones, service images, specifications, a key pair, a bucket name, both passwords, ingress sources and service egress rules. The caller configures application connections and log collection.
 
-The calling example manages the Provider and uses `source = "terraform-volcenginecc-modules/reference-architecture-web/volcenginecc"`. The module is unpublished; Registry installation is unverified, and no release version is invented. Static validation redirects the source only in temporary copies. Engine constraint is >= 1.5.7, < 1.12.0; exact validation targets are Terraform 1.5.7 and OpenTofu 1.11.8 with Registry Provider 0.0.73.
+## 2. Usage
 
-Prepare verified region/zone, preinstalled Web/application images serving port 8080 and /health, available ECS/RDS specifications, an existing key pair, enabled services, permissions and quotas. Supply actual private DNS/TOS/TLS endpoint CIDRs and routing through service_egress; NAT alone does not grant endpoint access. Configure application proxy/data connections and log agents yourself.
+Run from `examples/basic` in an isolated full repository copy. The current `main.tf` uses a Registry source that requires publication; publication status and module versions were not verified in this update. For local testing before publication, change only the copied `module.web.source` to `../..`, keeping the original repository guidance. Local sources have no `version`.
 
-| Input | Type | Default / requirement |
-|---|---|---|
-| `deployment` | object | Required; fields below |
-| `database_password` | string, sensitive | Required through TF_VAR_database_password |
-| `cache_password` | string, sensitive | Required through TF_VAR_cache_password |
-| `service_egress` | map(object({cidr=string, protocol=string, port=number})) | Required; actual IPv4 CIDR, tcp/udp, integer 1–65535 |
-| `tags` | map(string) | {}; Project/Environment set by module |
-| `cloudcontrol_endpoint` | string | null; default online API endpoint |
-
-| Deployment field | Type | Requirement |
-|---|---|---|
-| `deployment.name` | string | Required stable name, 3–31 lowercase letters/digits/hyphens, starts with a letter |
-| `deployment.region` | string | Required verified region |
-| `deployment.zone_id` | string | Required available zone |
-| `deployment.web_image_id` | string | Required preinstalled Web image |
-| `deployment.app_image_id` | string | Required preinstalled application image |
-| `deployment.web_instance_type` | string | Required available Web specification |
-| `deployment.app_instance_type` | string | Required available application specification |
-| `deployment.key_pair_name` | string | Required existing key pair |
-| `deployment.database_node_spec` | string | Required available MySQL specification |
-| `deployment.bucket_name` | string | Required region-unique bucket name |
-| `deployment.allowed_cidrs` | set(string) | Required nonempty explicit client IPv4 CIDRs |
-
-Put actual deployment/service_egress/tags values in a private deployment.tfvars. Use VOLCENGINE_ACCESS_KEY and VOLCENGINE_SECRET_KEY unchanged; keep credentials and real input files outside Git. After publication, run from examples/basic using one engine and its own State:
+Use Terraform `1.5.7` and supply this directory's required `terraform.tfvars` inputs and both sensitive passwords. Images must provide Web `8080`, `/health` and App `8080`. Confirm service activation, available regional specifications, private endpoint routes and permissions. Full creation needs at least two public EIP quota slots for CLB and NAT. Use the actual request egress CIDRs for the ingress allow list.
 
 ```bash
 terraform init
-terraform plan -var-file=deployment.tfvars -out=deployment.tfplan
-terraform apply deployment.tfplan
-terraform plan -var-file=deployment.tfvars
+terraform plan -out=部署计划.tfplan
+terraform apply 部署计划.tfplan
 terraform output -json architecture
 ```
 
-```bash
-tofu init
-tofu plan -var-file=deployment.tfvars -out=deployment.tfplan
-tofu apply deployment.tfplan
-tofu plan -var-file=deployment.tfvars
-tofu output -json architecture
-```
-
-The architecture object contains network, compute, entrypoint, data and storage_and_logs from the root module; it does not forward nat. Use the CLB public IP for access, private interface/data addresses for application configuration, and storage/log IDs for service integration. ASG ID, domain and ALB DNS are null in this configuration; monitoring IDs are empty. No passwords are output. Verify entry access and ACL denial, Web-to-app and app-to-MySQL/Redis connectivity, TOS permissions, TLS logs and a second plan reporting No changes.
-
-Preserve required data, empty the bucket and all versions, then destroy and query both managed and service-created resources/backups to confirm removal. Empty State is insufficient.
+Use outputs to configure the Web proxy, App MySQL/Redis connections, TOS access and log agents. Verify public HTTP, Web → App → MySQL/Redis, Web-to-data isolation and explicit NAT egress, then run:
 
 ```bash
-terraform destroy -var-file=deployment.tfvars
+terraform plan
 ```
+
+Expect `No changes`; current drift is described in section 9. After testing, review the deletion scope and remove all bucket objects and versions. If protection was separately enabled, disable and apply that update first, then run:
 
 ```bash
-tofu destroy -var-file=deployment.tfvars
+terraform destroy
 ```
 
-Two-stage security-group maintenance follows the security-group/examples workflow: create, read actual rules, maintain, then check the final plan. This module explicitly supplies all ten rule fields, but the platform can still append unrestricted default egress after creation. Query the security-group IDs from outputs, then plan maintenance of the existing Web/App groups. Apply only after confirming in-place removal of unexpected defaults, preservation of business/service_egress rules, and no creation or replacement. This module has no system_default_egress_rules input; adding unrestricted rules to the desired configuration is unnecessary. The final complete retest passed all four ingress/egress ten-field checks after second-stage maintenance.
+Keep State, lock files, caches, plans and logs in the isolated copy rather than the source deliverable.
 
-These commands assume the calling name module.web and are only for targeted maintenance after creation; adjust addresses to actual State when necessary. Investigate any creation, replacement or remaining taint before applying. Afterwards run an ordinary plan without targets and independently compare the complete cloud rule sets; only exit 0 establishes overall No changes. Passing security-group checks does not resolve drift in other resources. OpenTofu commands describe equivalent operations; only Terraform 1.5.7 cloud maintenance was tested.
+## 3. Requirements
 
-```bash
-terraform plan -var-file=deployment.tfvars \
-  -target='module.web.volcenginecc_vpc_security_group.this["web"]' \
-  -target='module.web.volcenginecc_vpc_security_group.this["app"]' \
-  -out=sg-maintenance.tfplan
-terraform apply sg-maintenance.tfplan
-terraform plan -var-file=deployment.tfvars -detailed-exitcode
-```
+| Name | Version |
+|---|---|
+| Terraform | `>= 1.5.7, < 1.12.0`; fixed project baseline `= 1.5.7` |
+| `volcengine/volcenginecc` | `= 0.0.73` |
 
-```bash
-tofu plan -var-file=deployment.tfvars \
-  -target='module.web.volcenginecc_vpc_security_group.this["web"]' \
-  -target='module.web.volcenginecc_vpc_security_group.this["app"]' \
-  -out=sg-maintenance.tfplan
-tofu apply sg-maintenance.tfplan
-tofu plan -var-file=deployment.tfvars -detailed-exitcode
-```
+These are the actual constraints in this directory's `versions.tf`. The allowed range is broader than the fixed baseline; this update does not change version files.
 
-Other limitations: filter official DescribeImages by InstanceType before creation; choosing by OS name alone is insufficient. The final complete retest used compatible Debian10 images and created both application ECS instances; basic image mismatch was not separately retested. For multiple NAT gateways in one VPC, inspect existing gateways and in-flight operations after ResourceConflict, then replan. A reviewed retry with -parallelism=1 can serialize operations, but this retest did not verify that it completes the deployment. There is no verified workaround for launch-template volumes/network_interfaces returning null; Web ASG and HTTPS entry remain unsuccessful. RDS public_download_enable=false still reads true, and TOS acl_grant reads null (independent ACL is Owner FULL_CONTROL only). ignore_changes cannot establish that these differences are fixed. No overall post-maintenance No changes evidence exists.
+## 4. Providers
 
-Final retest: basic planned 27 resources, created 23 State objects, and stopped on image/type mismatch. Native destroy retry exited 0; all 30 known objects were absent and final MySQL/Redis backup counts were zero after MySQL compensation.
+| Name | Source |
+|---|---|
+| `volcenginecc` | `volcengine/volcenginecc` |
 
-Local acceptance evidence is retained separately. Registry module consumption and OpenTofu cloud lifecycle remain unverified.
+This directory configures the region and optional Cloud Control endpoint without aliases; credentials come from the runtime environment.
+
+## 5. Resources
+
+| Name | Description |
+|---|---|
+| `module.web` | Actual source `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`, invoking the three-tier Web root module; local testing in an isolated copy uses `../..`. |
+
+This directory declares no direct resources or data sources. Full creation expects 27 module-managed resources, including one Web, one App, four subnets, two SNAT entries and one Web/App route table. ASG is disabled; service-created implicit resources are excluded.
+
+## 6. Inputs
+
+| Name | Description |
+|---|---|
+| `deployment` | Required object: `name`, `region`, `zone_id`, `web_image_id`, `app_image_id`, `web_instance_type`, `app_instance_type`, `key_pair_name`, `database_node_spec`, `bucket_name` are strings; `allowed_cidrs` is a nonempty `set(string)`. Supply verified regional dependencies and ingress sources. |
+| `database_password` | Required sensitive string, neither null nor blank; inject through `TF_VAR_database_password` or platform sensitive variables and follow MySQL password rules. |
+| `cache_password` | Required sensitive string, neither null nor blank; inject through `TF_VAR_cache_password` or platform sensitive variables and follow Redis password rules. |
+| `service_egress` | Required `map(object({cidr=string, protocol=string, port=number}))`; use actual DNS/TOS/TLS endpoint rules with valid CIDRs, tcp/udp, integer ports 1–65535 and working routes. |
+| `tags` | Optional `map(string)`, default `{}`; supply Owner/CostCenter tags. The module sets Project/Environment. |
+| `cloudcontrol_endpoint` | Optional string, default `null` for the provider default; configure a Cloud Control API address only for an explicit environment requirement. |
+
+VPC CIDR is fixed at `10.20.0.0/16`; primary edge/web/app/data use `10.20.0.0/24` through `10.20.3.0/24`. This example exposes no existing-resource reuse inputs. Web/App each use one instance per zone and 40 GiB ESSD_PL0 system disks. MySQL defaults to 100 GiB and seven-day backups; development Redis is single-node with no backup plan. CLB and NAT each default to 10 Mbps, and TLS retention is 30 days.
+
+## 7. Outputs
+
+| Name | Description |
+|---|---|
+| `architecture` | Object containing `network`, `compute`, `entrypoint`, `data`, `storage_and_logs`; use private interfaces/data endpoints for applications, the CLB public address for ingress and Bucket/TLS IDs for storage and collection. The root `nat` output is not forwarded. |
+
+## 8. Example
+
+This directory is the basic example for single-zone development and minimal three-tier checks. Use complete for two zones, HTTPS, cross-zone data instances and monitoring, supplying its additional inputs.
+
+## 9. Notes
+
+Inject credentials using provider-supported runtime settings such as `VOLCENGINE_ACCESS_KEY` and `VOLCENGINE_SECRET_KEY`, and passwords using sensitive variables. State still contains sensitive values and must be protected by the caller. The caller supplies application installation, connections, log agents and private maintenance access; there is no default SSH ingress.
+
+The HTTP CLB listener reaches Web on backend port `8080`, and health checks omit the port override to follow the backend. Web security group sources remain fixed at `100.64.0.0/10`. Service egress allows only explicit rules; priority 99 denial takes precedence over platform priority 100 default allow rules. A single ingress CIDR permits only that egress source; maintain the list when networks or users change.
+
+NAT creates SNAT only for Web/App. Data retains the system route table, which may contain the NAT service's automatically added default route; no isolated data route table is bound. Data has no SNAT, so a default route alone does not prove public connectivity. Active data-subnet egress has not been directly tested.
+
+An isolated copy of the same implementation previously completed one Apply from empty State and business checks after application initialization; current Registry installation is unverified. The post-Apply `terraform plan` must show no changes for idempotency, but existing results still have four RDS/TOS/security-group drifts. Standard Destroy failed on asynchronous TOS and CLB deletion tasks; subsequent cleanup retries do not establish a successful full lifecycle. RDS/Redis final backups may remain under service policy, with Redis retained for seven days. This documentation check does not constitute renewed acceptance.
