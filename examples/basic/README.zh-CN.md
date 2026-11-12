@@ -1,12 +1,14 @@
 # BASIC Web 架构 示例
 
+模块 source 为 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`，模块版本约束为 `version = "~> 1.0"`（>= 1.0.0、< 2.0.0），与 Provider 版本要求分别配置。Registry 安装要求该范围内已有已发布模块版本。
+
 ## 1. 概述
 
 本示例创建单区开发环境：四层子网、公网 HTTP CLB、一台 Web 和一台 App、私网单节点 MySQL/Redis、一个出站 NAT、TOS 与 TLS。相较 complete，不配置双区、HTTPS、监控和生产删除保护。调用方准备可用区、预装服务的镜像、规格、密钥对、Bucket 名称、两项密码、入口来源及服务出站规则；应用连接和日志采集由调用方配置。
 
 ## 2. 用法
 
-运行目录为完整仓库隔离副本中的 `examples/basic`。当前 `main.tf` 使用 Registry source，需模块正式发布后才能安装；本次未核实发布状态或模块版本。发布前本地测试仅将副本中的 `module.web.source` 改为 `../..`，保持仓库原始指引。本地调用不填写 `version`。
+在 `examples/basic` 目录运行。`main.tf` 通过 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc` 调用远程三层 Web 模块。
 
 使用 Terraform `1.5.7`，准备本目录 `terraform.tfvars` 中的必填输入和两项敏感密码。镜像需提供 Web `8080`、`/health` 和 App `8080`；确认目标地域服务已开通、规格可用、私网端点路由及权限具备。完整新建需至少两个公网 EIP 配额，分别供 CLB 和 NAT 使用。入口白名单填实际访问请求的公网出口 CIDR。
 
@@ -23,13 +25,13 @@ terraform output -json architecture
 terraform plan
 ```
 
-预期为 `No changes`，当前已知漂移见第 9 节。测试结束后核对销毁范围，清空 Bucket 的全部对象和版本；如另行开启删除保护，先关闭并更新后再执行：
+预期为 `No changes`。需要销毁时，核对销毁范围，清空 Bucket 的对象、历史版本和删除标记；如另行开启删除保护，先关闭并应用更新后再执行：
 
 ```bash
 terraform destroy
 ```
 
-隔离副本承载 State、锁文件、缓存、计划和日志，避免混入待交付源码。
+使用独立 State/backend；State、缓存、计划、日志及敏感参数不提交到 Git。
 
 ## 3. 依赖要求
 
@@ -38,7 +40,7 @@ terraform destroy
 | Terraform | `>= 1.5.7, < 1.12.0`；项目固定基线 `= 1.5.7` |
 | `volcengine/volcenginecc` | `= 0.0.73` |
 
-这是本目录 `versions.tf` 的实际约束，允许范围比固定基线宽；本次没有改动版本文件。
+这是本目录 `versions.tf` 的实际约束，允许范围比固定基线宽。
 
 ## 4. Providers
 
@@ -52,7 +54,7 @@ terraform destroy
 
 | 名称 | 说明 |
 |---|---|
-| `module.web` | 实际 source 为 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`，调用三层 Web 根模块；隔离副本本地测试用 `../..`。 |
+| `module.web` | source 为 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`，调用远程三层 Web 模块。 |
 
 本目录没有直接声明 Resource 或 Data Source。完整新建预期由模块管理 27 项资源：包括一台 Web、一台 App、四个子网、两个 SNAT 条目和一个 Web/App 路由表；ASG 关闭，不包含云服务隐式资源。
 
@@ -85,6 +87,6 @@ VPC 固定为 `10.20.0.0/16`，primary 的 edge/web/app/data 分别为 `10.20.0.
 
 CLB HTTP 监听器通过后端组访问 Web `8080`，健康检查省略覆盖端口并随从后端。Web 安全组来源固定为 `100.64.0.0/10`；服务出站仅放行显式规则，优先级 99 的拒绝阻止平台优先级 100 的默认允许规则。单一入口 CIDR 只放行对应出口，换网络或多人访问要维护白名单。
 
-NAT 只为 Web/App 建立 SNAT；data 仍继承系统路由表，可能含 NAT 服务自动加入的默认路由，当前未绑定独立隔离路由表。data 无 SNAT，不能把默认路由存在等同于公网可达，data 主动出网尚未直接验证。
+NAT 只为 Web/App 建立 SNAT 和独立路由表，默认路由指向共享 NAT。data 使用系统路由表，不配置 SNAT。
 
-相同实现的隔离副本曾完成空 State 一次 Apply 与应用初始化后的业务验证，当前 Registry 安装未验证。Apply 后的 `terraform plan` 应无变化才满足幂等；已有结果仍有四项 RDS/TOS/安全组漂移。标准 Destroy 曾因 TOS 和 CLB 异步删除任务失败，后续重试清理不等于完整生命周期通过；RDS/Redis 最终备份可能按服务策略保留，Redis 为七天。本次文档检查不代表重新验收通过。
+CLB 仅传入 TLS 项目和 Topic 关联信息，日志启用开关由调用方管理；模块不配置 CLB 删除保护。销毁前清空 TOS 的对象、历史版本和删除标记。
