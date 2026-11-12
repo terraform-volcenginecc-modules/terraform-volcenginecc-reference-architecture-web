@@ -6,7 +6,7 @@ Configure two-zone production infrastructure with eight subnets, two static Web 
 
 ## 2. Usage
 
-Run from `examples/complete` in an isolated full repository copy. The current `main.tf` uses a Registry source that requires publication; publication status and module versions were not verified in this update. For local testing before publication, change only the copied `module.web.source` to `../..`, retaining the original repository guidance. Local sources have no `version`.
+Run from `examples/complete` in an isolated full repository copy. `main.tf` calls the remote three-tier Web module through `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`.
 
 Use Terraform `1.5.7` and supply the required `terraform.tfvars` inputs, both sensitive passwords, specifications for both zones and images with Web/App installed. Web must provide `8080` and `/health`; App must provide `8080`. Match the HTTPS certificate to the domain and supply at least one verified official metric rule and contact group. Confirm services, private endpoint routes and permissions. Default full creation needs at least three public EIP quota slots for two-zone ALB and NAT.
 
@@ -53,7 +53,7 @@ Keep State, lock files, caches, plans and logs in the isolated copy or a separat
 | Terraform | `>= 1.5.7, < 1.12.0`; fixed project baseline `= 1.5.7` |
 | `volcengine/volcenginecc` | `= 0.0.73` |
 
-These are the actual constraints in this directory's `versions.tf`. The allowed range is broader than the fixed baseline; this update does not change version files.
+These are the actual constraints in this directory's `versions.tf`. The allowed range is broader than the fixed baseline.
 
 ## 4. Providers
 
@@ -67,7 +67,7 @@ This directory configures the region and optional Cloud Control endpoint without
 
 | Name | Description |
 |---|---|
-| `module.web` | Actual source `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`, invoking the three-tier Web root module; local testing in an isolated copy uses `../..`. |
+| `module.web` | Source `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`, invoking the remote three-tier Web module. |
 
 This directory declares no direct resources or data sources. Default ALB with all resources newly created and one monitoring rule expects 37 module-managed resources, including eight subnets, four static ECS instances, one NAT, four SNAT entries and two Web/App route tables. ASG is disabled. Reuse and additional monitoring rules change the total; implicit resources are excluded.
 
@@ -123,6 +123,6 @@ Existing resources are referenced by ID without import or changes to accounts, a
 
 Static ECS in both zones avoids Provider `0.0.73` ASG launch-template readback defects; ASG has not passed acceptance. CLB does not configure access logs or its own deletion protection. HTTPS certificates and Web business ports must match the services. Security groups allow only business and explicit service traffic; priority 99 denial takes precedence over platform priority 100 allow rules.
 
-An isolated copy of the same implementation previously completed one Apply from empty State and initialized two-zone business checks; current Registry installation is unverified. The post-Apply `terraform plan` must show no changes for idempotency, but existing results still have four RDS/TOS/security-group drifts. Production platform tests showed disabled actual deletion protection and an empty TOS version status, so configured settings do not establish effective service state.
+An isolated copy of the same implementation previously completed one Apply from empty State and initialized two-zone business checks. The post-Apply `terraform plan` must show no changes for idempotency, but existing results still have four RDS/TOS/security-group drifts. Production platform tests showed disabled actual deletion protection and an empty TOS version status, so configured settings do not establish effective service state.
 
-Standard Destroy failed on asynchronous TOS deletion and Redis allow-list unbinding; later cleanup retries do not establish a successful full lifecycle. Disabling ALB protection may plan replacement; review and disable native protection as described in section 2. Remove all TOS versions before deletion. RDS/Redis final backups may remain, with Redis retained for seven days. This documentation check did not rerun cloud acceptance.
+Standard Destroy failed on asynchronous TOS deletion and Redis allow-list unbinding; later cleanup retries do not establish a successful full lifecycle. Disabling ALB protection may plan replacement; review and disable native protection as described in section 2. Remove all TOS versions before deletion. RDS/Redis final backups may remain, with Redis retained for seven days.

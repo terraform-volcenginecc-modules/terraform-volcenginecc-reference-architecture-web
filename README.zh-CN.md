@@ -10,7 +10,7 @@
 
 准备目标地域的可用区、已预装 Web/App 服务的镜像、ECS 与 MySQL 规格、已有密钥对和地域唯一的 Bucket 名称。Web 服务应监听 `8080` 并提供 `/health`；App 应监听 `8080`。入口来源填实际访问者的公网出口 CIDR，服务出站填实际 DNS/TOS/TLS 等端点的 CIDR、协议和端口，并确认对应路由、权限、服务开通状态与配额。
 
-以下是本地调用配置：在完整仓库的隔离副本 `examples/basic` 中使用，其中 `source = "../.."` 指向副本根模块。用以下完整配置替换副本该目录原有的调用方 `.tf` 配置，避免重复声明变量或 Provider。本段展示私网 HTTP ALB 的最小调用；仓库已有 basic 示例采用公网 HTTP CLB，不能将两者的入口参数混用。
+以下调用配置与两套 example 的 `main.tf` 使用相同的 Registry 远程模块地址。在独立调用方目录中保存以下完整配置，避免重复声明变量或 Provider。本段展示私网 HTTP ALB 的最小调用；仓库已有 basic 示例采用公网 HTTP CLB，不能将两者的入口参数混用。
 
 ```hcl
 terraform {
@@ -77,7 +77,7 @@ module "web" {
 }
 ```
 
-调用方通过 Provider 支持的 `VOLCENGINE_ACCESS_KEY`、`VOLCENGINE_SECRET_KEY` 注入凭据，通过 `TF_VAR_database_password`、`TF_VAR_cache_password` 或平台敏感变量注入密码。在隔离副本运行 Terraform `1.5.7`，准备该配置所需的 `terraform.tfvars` 和独立 State/backend；真实参数与密码不写入 README 或 Git。
+调用方通过 Provider 支持的 `VOLCENGINE_ACCESS_KEY`、`VOLCENGINE_SECRET_KEY` 注入凭据，通过 `TF_VAR_database_password`、`TF_VAR_cache_password` 或平台敏感变量注入密码。在调用方目录运行 Terraform `1.5.7`，准备该配置所需的 `terraform.tfvars` 和独立 State/backend；真实参数与密码不写入 README 或 Git。
 
 ```bash
 terraform init
@@ -98,7 +98,7 @@ terraform plan
 terraform destroy
 ```
 
-仓库两套 example 的实际 `source` 保留为 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`。该 Registry 地址需正式发布后才能安装，本次未核实发布状态或可用版本。本地测试使用完整仓库的隔离副本，仅在副本的 example 中改用 `../..`，不为本地 source 设置 `version`。
+README 与两套 example 均通过 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc` 调用远程模块。
 
 ## 3. 示例（Examples）
 
@@ -115,7 +115,7 @@ terraform destroy
 | Terraform | 源码约束 `>= 1.5.7, < 1.12.0`；项目固定基线 `= 1.5.7` |
 | `volcengine/volcenginecc` | 根模块 `>= 0.0.73`；两套 example 固定 `= 0.0.73` |
 
-源码允许的引擎范围比固定基线宽；本次文档更新保留实际约束，未调整版本文件。地域相关规格、证书、服务权限与配额由调用方核实。
+源码允许的引擎范围比固定基线宽。地域相关规格、证书、服务权限与配额由调用方核实。
 
 ## 5. Providers（Providers）
 
@@ -279,4 +279,4 @@ ALB 可接入 TLS 访问日志；创建 Topic 不等于应用已采集日志。C
 
 销毁受保护资源前，将 `deletion_protection=false`；生产还要显式设置 `allow_protection_disable=true`，审阅更新计划并核对 ECS/RDS/Redis/ALB 的实际保护状态。ALB 关闭保护更新可能出现替换计划，应先通过原生服务关闭对应 ALB 的 `DeleteProtection`，核对计划后再继续。清空 TOS 全部版本；RDS 最终备份可能保留，Redis 最终备份由服务保留七天。密码虽标记 sensitive，仍会写入 State，由调用方保管 State 和凭据。
 
-相同实现的隔离副本曾完成 basic/complete 空 State 一次 Apply 和应用初始化后的业务链路验证；当前 Registry 安装未验证。两套二次 `terraform plan` 各出现四项 RDS/TOS/安全组漂移，尚未达到 `No changes`；标准 Destroy 曾因 TOS/CLB 异步任务及 Redis 白名单解绑失败，后续重试清理不代表完整生命周期通过。生产平台测试还出现删除保护关闭、TOS 版本状态为空，生产使用前应核对原生服务状态。本次只修正文档，没有重新执行云验收。
+相同实现的隔离副本曾完成 basic/complete 空 State 一次 Apply 和应用初始化后的业务链路验证。两套二次 `terraform plan` 各出现四项 RDS/TOS/安全组漂移，尚未达到 `No changes`；标准 Destroy 曾因 TOS/CLB 异步任务及 Redis 白名单解绑失败，后续重试清理不代表完整生命周期通过。生产平台测试还出现删除保护关闭、TOS 版本状态为空，生产使用前应核对原生服务状态。

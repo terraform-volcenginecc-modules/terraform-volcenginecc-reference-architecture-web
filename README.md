@@ -10,7 +10,7 @@ Build single-zone development or multi-zone production infrastructure with edge,
 
 Prepare zone IDs, images with Web/App services installed, ECS and MySQL specifications, an existing key pair and a region-unique bucket name. Web should listen on `8080` and serve `/health`; App should listen on `8080`. Use the visitors' actual public egress CIDRs for ingress and actual DNS/TOS/TLS endpoint CIDRs, protocols and ports for service egress. Confirm routes, permissions, service activation and quotas.
 
-This local configuration runs in `examples/basic` of an isolated full repository copy, where `source = "../.."` refers to the copied root module. Replace that copied directory's existing caller `.tf` files with this complete configuration to avoid duplicate variable or provider declarations. It demonstrates a minimal private HTTP ALB invocation. The existing basic example uses a public HTTP CLB and different ingress settings.
+This configuration uses the same remote Registry module source as `main.tf` in both examples. Save this complete configuration in a separate caller directory to avoid duplicate variable or provider declarations. It demonstrates a minimal private HTTP ALB invocation. The existing basic example uses a public HTTP CLB and different ingress settings.
 
 ```hcl
 terraform {
@@ -77,7 +77,7 @@ module "web" {
 }
 ```
 
-Inject credentials through the provider-supported `VOLCENGINE_ACCESS_KEY` and `VOLCENGINE_SECRET_KEY`; supply passwords through `TF_VAR_database_password`, `TF_VAR_cache_password` or platform sensitive variables. Use Terraform `1.5.7` in the isolated copy with the required `terraform.tfvars` and a separate State/backend. Keep real inputs and passwords out of the README and Git.
+Inject credentials through the provider-supported `VOLCENGINE_ACCESS_KEY` and `VOLCENGINE_SECRET_KEY`; supply passwords through `TF_VAR_database_password`, `TF_VAR_cache_password` or platform sensitive variables. Use Terraform `1.5.7` in the caller directory with the required `terraform.tfvars` and a separate State/backend. Keep real inputs and passwords out of the README and Git.
 
 ```bash
 terraform init
@@ -98,7 +98,7 @@ Expect `No changes`. Before destruction, remove bucket objects, historical versi
 terraform destroy
 ```
 
-Both repository examples retain the actual source `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`. Registry installation requires a published module; publication status and available versions were not verified in this update. For local testing, use a full isolated repository copy and change only the copied example source to `../..`, without a Registry `version`.
+The README and both examples call the remote module through `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`.
 
 ## 3. Examples
 
@@ -115,7 +115,7 @@ Both examples disable ASG. With all resources newly created and one monitoring r
 | Terraform | Source constraint `>= 1.5.7, < 1.12.0`; fixed project baseline `= 1.5.7` |
 | `volcengine/volcenginecc` | Root module `>= 0.0.73`; both examples pin `= 0.0.73` |
 
-The source allows a broader engine range than the fixed baseline. This documentation update preserves the actual constraint and does not change version files. The caller verifies regional specifications, certificates, service permissions and quotas.
+The source allows a broader engine range than the fixed baseline. The caller verifies regional specifications, certificates, service permissions and quotas.
 
 ## 5. Providers
 
@@ -279,4 +279,4 @@ ALB can send access logs to TLS; creating topics does not install application lo
 
 Before deleting protected resources, set `deletion_protection=false`; production also requires `allow_protection_disable=true`. Review the update Plan and verify actual ECS/RDS/Redis/ALB protection. An ALB protection update may plan replacement: first disable `DeleteProtection` for that ALB through its native service, then review the Plan before proceeding. Remove all TOS versions. RDS final backups may remain, and Redis final backups are retained for seven days. Sensitive passwords still enter State; the caller protects State and credentials.
 
-Isolated copies of the same implementation previously completed one Apply from empty State for basic/complete and business checks after application initialization; current Registry installation is unverified. Each second `terraform plan` still contains four RDS/TOS/security-group drifts and has not reached `No changes`. Standard Destroy failed on asynchronous TOS/CLB tasks and Redis allow-list unbinding; later cleanup retries do not establish a successful full lifecycle. Production platform tests also showed disabled deletion protection and an empty TOS version status; verify native service settings before production use. This update changes documentation without rerunning cloud acceptance.
+Isolated copies of the same implementation previously completed one Apply from empty State for basic/complete and business checks after application initialization. Each second `terraform plan` still contains four RDS/TOS/security-group drifts and has not reached `No changes`. Standard Destroy failed on asynchronous TOS/CLB tasks and Redis allow-list unbinding; later cleanup retries do not establish a successful full lifecycle. Production platform tests also showed disabled deletion protection and an empty TOS version status; verify native service settings before production use.

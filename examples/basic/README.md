@@ -6,7 +6,7 @@ Create a single-zone development environment with four subnet tiers, public HTTP
 
 ## 2. Usage
 
-Run from `examples/basic` in an isolated full repository copy. The current `main.tf` uses a Registry source that requires publication; publication status and module versions were not verified in this update. For local testing before publication, change only the copied `module.web.source` to `../..`, keeping the original repository guidance. Local sources have no `version`.
+Run from `examples/basic` in an isolated full repository copy. `main.tf` calls the remote three-tier Web module through `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`.
 
 Use Terraform `1.5.7` and supply this directory's required `terraform.tfvars` inputs and both sensitive passwords. Images must provide Web `8080`, `/health` and App `8080`. Confirm service activation, available regional specifications, private endpoint routes and permissions. Full creation needs at least two public EIP quota slots for CLB and NAT. Use the actual request egress CIDRs for the ingress allow list.
 
@@ -38,7 +38,7 @@ Keep State, lock files, caches, plans and logs in the isolated copy rather than 
 | Terraform | `>= 1.5.7, < 1.12.0`; fixed project baseline `= 1.5.7` |
 | `volcengine/volcenginecc` | `= 0.0.73` |
 
-These are the actual constraints in this directory's `versions.tf`. The allowed range is broader than the fixed baseline; this update does not change version files.
+These are the actual constraints in this directory's `versions.tf`. The allowed range is broader than the fixed baseline.
 
 ## 4. Providers
 
@@ -52,7 +52,7 @@ This directory configures the region and optional Cloud Control endpoint without
 
 | Name | Description |
 |---|---|
-| `module.web` | Actual source `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`, invoking the three-tier Web root module; local testing in an isolated copy uses `../..`. |
+| `module.web` | Source `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`, invoking the remote three-tier Web module. |
 
 This directory declares no direct resources or data sources. Full creation expects 27 module-managed resources, including one Web, one App, four subnets, two SNAT entries and one Web/App route table. ASG is disabled; service-created implicit resources are excluded.
 
@@ -87,4 +87,4 @@ The HTTP CLB listener reaches Web on backend port `8080`, and health checks omit
 
 NAT creates SNAT only for Web/App. Data retains the system route table, which may contain the NAT service's automatically added default route; no isolated data route table is bound. Data has no SNAT, so a default route alone does not prove public connectivity. Active data-subnet egress has not been directly tested.
 
-An isolated copy of the same implementation previously completed one Apply from empty State and business checks after application initialization; current Registry installation is unverified. The post-Apply `terraform plan` must show no changes for idempotency, but existing results still have four RDS/TOS/security-group drifts. Standard Destroy failed on asynchronous TOS and CLB deletion tasks; subsequent cleanup retries do not establish a successful full lifecycle. RDS/Redis final backups may remain under service policy, with Redis retained for seven days. This documentation check does not constitute renewed acceptance.
+An isolated copy of the same implementation previously completed one Apply from empty State and business checks after application initialization. The post-Apply `terraform plan` must show no changes for idempotency, but existing results still have four RDS/TOS/security-group drifts. Standard Destroy failed on asynchronous TOS and CLB deletion tasks; subsequent cleanup retries do not establish a successful full lifecycle. RDS/Redis final backups may remain under service policy, with Redis retained for seven days.
