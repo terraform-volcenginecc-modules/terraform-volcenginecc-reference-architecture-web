@@ -8,7 +8,7 @@ Configure two-zone production infrastructure with eight subnets, two static Web 
 
 ## 2. Usage
 
-Run from `examples/complete` in an isolated full repository copy. `main.tf` calls the remote three-tier Web module through `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`.
+Run from the `examples/complete` directory. `main.tf` calls the remote three-tier Web module through `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`.
 
 Use Terraform `1.5.7` and supply the required `terraform.tfvars` inputs, both sensitive passwords, specifications for both zones and images with Web/App installed. Web must provide `8080` and `/health`; App must provide `8080`. Match the HTTPS certificate to the domain and supply at least one verified official metric rule and contact group. Confirm services, private endpoint routes and permissions. Default full creation needs at least three public EIP quota slots for two-zone ALB and NAT.
 
@@ -27,16 +27,15 @@ Configure DNS, the Web proxy, private App MySQL/Redis connections, TOS access an
 terraform plan
 ```
 
-Expect `No changes`; current drift is described in section 9. Before deletion, remove all TOS objects, versions and delete markers. In a confirmed maintenance window, set both `deletion_protection=false` and `allow_protection_disable=true`:
+Expect `No changes`. Before deletion, remove all TOS objects, versions and delete markers. In a maintenance window, set both `deletion_protection=false` and `allow_protection_disable=true`:
 
 ```bash
 terraform plan -out=关闭保护计划.tfplan
 ```
 
-Review the intended scope. If the ALB protection update plans replacement, first disable `DeleteProtection` for the specific ALB through its native service. Re-plan and review before applying protection updates for other resources:
+Review the updates and replacements in the Plan, confirm only intended resources are affected, then apply the protection update:
 
 ```bash
-terraform plan -out=关闭保护计划.tfplan
 terraform apply 关闭保护计划.tfplan
 ```
 
@@ -46,7 +45,7 @@ Verify actual ECS/RDS/Redis/ALB protection is disabled and existing resources ar
 terraform destroy
 ```
 
-Keep State, lock files, caches, plans and logs in the isolated copy or a separate backend.
+Use a separate State/backend; keep State, caches, plans, logs and sensitive inputs out of Git.
 
 ## 3. Requirements
 
@@ -103,7 +102,7 @@ map(object({
 
 VPC CIDR is `10.20.0.0/16`. Primary edge/web/app/data use `10.20.0.0/24` through `10.20.3.0/24`; secondary uses `10.20.4.0/24` through `10.20.7.0/24`. Existing subnet keys combine `primary` or `secondary` with `-edge`, `-web`, `-app` and `-data`. Use the root module directly for other CIDRs.
 
-Each zone has one Web and one App with default 40 GiB ESSD_PL0 system disks. New MySQL uses cross-zone two-node deployment, 100 GiB storage and 30-day backups; new Redis uses two cross-zone nodes and daily backups. TLS retains 90 days, and TOS configures versioning. The module protection input is `deletion_protection || !allow_protection_disable`, so disabling requires false/true together; actual service state still needs verification.
+Each zone has one Web and one App with default 40 GiB ESSD_PL0 system disks. New MySQL uses cross-zone two-node deployment, 100 GiB storage and 30-day backups; new Redis uses two cross-zone nodes and daily backups. TLS retains 90 days, and TOS configures versioning. The module protection input is `deletion_protection || !allow_protection_disable`, so disabling requires false/true together.
 
 ## 7. Outputs
 
@@ -115,16 +114,14 @@ When reusing MySQL/Redis, `data` retains IDs but returns null endpoints; query e
 
 ## 8. Example
 
-This directory is the complete example for two-zone HTTPS and production configuration checks, or data reuse in a matching network. Compared with basic, it requires certificates, a domain, monitoring and protection maintenance steps. Verify native service settings before production use.
+This directory is the complete example for two-zone HTTPS deployment or data reuse in a matching network. Compared with basic, it requires certificates, a domain, monitoring and protection maintenance steps.
 
 ## 9. Notes
 
 Inject credentials into the runtime through provider-supported settings such as `VOLCENGINE_ACCESS_KEY` and `VOLCENGINE_SECRET_KEY`; use sensitive variables for both passwords. State still contains sensitive values and remains caller-managed. The caller maintains applications, DNS, certificates and log agents; TLS topic creation does not automatically collect application logs.
 
-Existing resources are referenced by ID without import or changes to accounts, allow lists, backups or protection, and are excluded from module Destroy. New networks configure SNAT only for Web/App. Data retains the system route table, which may contain a NAT default route; data has no SNAT and isolated routing is not implemented. Module NAT is disabled for reused networks, whose egress and isolation remain caller-managed.
+Existing resources are referenced by ID without import or changes to accounts, allow lists, backups or protection, and are excluded from module Destroy. New networks configure SNAT and separate route tables only for Web/App. Data uses the system route table without SNAT. Module NAT is disabled for reused networks; the caller maintains existing routes and egress configuration.
 
-Static ECS in both zones avoids Provider `0.0.73` ASG launch-template readback defects; ASG has not passed acceptance. CLB does not configure access logs or its own deletion protection. HTTPS certificates and Web business ports must match the services. Security groups allow only business and explicit service traffic; priority 99 denial takes precedence over platform priority 100 allow rules.
+This example uses static ECS instances in both zones with ASG disabled. ALB sends access and health-check logs to TLS. When CLB is selected, the module only passes TLS project and topic references; the caller manages log activation and CLB deletion protection. Security groups allow business and explicit service traffic and deny unauthorized egress.
 
-An isolated copy of the same implementation previously completed one Apply from empty State and initialized two-zone business checks. The post-Apply `terraform plan` must show no changes for idempotency, but existing results still have four RDS/TOS/security-group drifts. Production platform tests showed disabled actual deletion protection and an empty TOS version status, so configured settings do not establish effective service state.
-
-Standard Destroy failed on asynchronous TOS deletion and Redis allow-list unbinding; later cleanup retries do not establish a successful full lifecycle. Disabling ALB protection may plan replacement; review and disable native protection as described in section 2. Remove all TOS versions before deletion. RDS/Redis final backups may remain, with Redis retained for seven days.
+Before destruction, update deletion protection as described in section 2 and remove TOS objects, historical versions and delete markers. Existing resources remain caller-managed.

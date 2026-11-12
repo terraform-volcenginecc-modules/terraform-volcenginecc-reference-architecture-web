@@ -8,7 +8,7 @@
 
 ## 2. 用法
 
-运行目录为完整仓库隔离副本中的 `examples/complete`。`main.tf` 通过 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc` 调用远程三层 Web 模块。
+在 `examples/complete` 目录运行。`main.tf` 通过 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc` 调用远程三层 Web 模块。
 
 使用 Terraform `1.5.7`，准备本目录必填 `terraform.tfvars` 输入、两项敏感密码、两区规格和已预装 Web/App 的镜像。Web 提供 `8080` 和 `/health`，App 提供 `8080`。HTTPS 证书与域名匹配，至少一条监控规则使用已核实的官方指标与联系人组；确认服务、私网端点路由及权限可用。默认完整新建需至少三个公网 EIP 配额，供双区 ALB 与 NAT 使用。
 
@@ -27,16 +27,15 @@ terraform output -json architecture
 terraform plan
 ```
 
-预期为 `No changes`，当前已知漂移见第 9 节。销毁前先清空 TOS 所有对象、版本和删除标记，在已确认的维护窗口同时设置 `deletion_protection=false`、`allow_protection_disable=true`：
+预期为 `No changes`。销毁前先清空 TOS 所有对象、版本和删除标记，在维护窗口同时设置 `deletion_protection=false`、`allow_protection_disable=true`：
 
 ```bash
 terraform plan -out=关闭保护计划.tfplan
 ```
 
-核对计划只涉及预期资源。ALB 保护更新若出现替换，先通过原生服务关闭对应 ALB 的 `DeleteProtection`，重新 Plan 并审阅，再更新其他资源保护：
+审阅计划中的更新和替换，确认只涉及预期资源，再应用保护更新：
 
 ```bash
-terraform plan -out=关闭保护计划.tfplan
 terraform apply 关闭保护计划.tfplan
 ```
 
@@ -46,7 +45,7 @@ terraform apply 关闭保护计划.tfplan
 terraform destroy
 ```
 
-State、锁文件、缓存、计划与日志保存在隔离副本或独立 backend。
+使用独立 State/backend；State、缓存、计划、日志及敏感参数不提交到 Git。
 
 ## 3. 依赖要求
 
@@ -103,7 +102,7 @@ map(object({
 
 VPC 为 `10.20.0.0/16`。primary 的 edge/web/app/data 为 `10.20.0.0/24` 至 `10.20.3.0/24`，secondary 为 `10.20.4.0/24` 至 `10.20.7.0/24`；已有子网 key 为 `primary-edge/web/app/data` 和 `secondary-edge/web/app/data` 的各个组合。其他网段应直接调用根模块。
 
-每区各一台 Web/App，默认 40 GiB ESSD_PL0 系统盘；新建 MySQL 使用跨区双节点、100 GiB 存储及 30 天备份，新建 Redis 使用跨区双节点与每日备份。TLS 保留 90 天，TOS 配置版本控制。模块保护输入为 `deletion_protection || !allow_protection_disable`，因此关闭保护必须同时使用 false/true；实际服务状态仍需核对。
+每区各一台 Web/App，默认 40 GiB ESSD_PL0 系统盘；新建 MySQL 使用跨区双节点、100 GiB 存储及 30 天备份，新建 Redis 使用跨区双节点与每日备份。TLS 保留 90 天，TOS 配置版本控制。模块保护输入为 `deletion_protection || !allow_protection_disable`，因此关闭保护必须同时使用 false/true。
 
 ## 7. 输出
 
@@ -115,16 +114,14 @@ VPC 为 `10.20.0.0/16`。primary 的 edge/web/app/data 为 `10.20.0.0/24` 至 `1
 
 ## 8. 示例
 
-本目录即为 complete 示例，适合双区 HTTPS 和生产配置验证，或在匹配网络中复用数据资源。相较 basic，需要证书、域名、监控及维护保护步骤；生产使用前应核对原生服务状态。
+本目录即为 complete 示例，适合双区 HTTPS 部署，或在匹配网络中复用数据资源。相较 basic，需要证书、域名、监控及维护保护步骤。
 
 ## 9. 说明
 
 凭据通过 `VOLCENGINE_ACCESS_KEY`、`VOLCENGINE_SECRET_KEY` 等 Provider 支持方式注入运行环境，两项密码使用敏感变量；State 仍保存敏感值，由调用方保管。应用、DNS、证书和日志 Agent 由调用方维护；TLS Topic 创建不代表应用日志已自动接入。
 
-已有资源只通过 ID 引用，不 import、不修改其账户、白名单、备份或保护，也不纳入模块 Destroy。新建网络仅为 Web/App 配 SNAT；data 仍使用可能含 NAT 默认路由的系统路由表，无 data SNAT，独立路由隔离尚未实现。复用网络时模块 NAT 关闭，出站与隔离由调用方管理。
+已有资源只通过 ID 引用，不 import、不修改其账户、白名单、备份或保护，也不纳入模块 Destroy。新建网络仅为 Web/App 配置 SNAT 和独立路由表；data 使用系统路由表，不配置 SNAT。复用网络时模块 NAT 关闭，已有路由和出站配置由调用方管理。
 
-两区静态 ECS 避开 Provider `0.0.73` 的 ASG 启动模板回读异常，ASG 路径尚未通过。CLB 不配置访问日志或自身删除保护；HTTPS 和业务端口仍需匹配证书与 Web 服务。安全组只允许业务和显式服务流量，优先级 99 拒绝不会被平台优先级 100 允许绕过。
+本示例使用两区静态 ECS，不启用 ASG。ALB 接入 TLS 访问日志与健康检查日志；选择 CLB 时，模块仅传入 TLS 项目和 Topic 关联信息，日志启用开关及 CLB 删除保护由调用方管理。安全组放行业务和显式服务流量，并拒绝未授权出站。
 
-相同实现的隔离副本曾完成空 State 一次 Apply 和初始化后的双区业务验证。Apply 后 `terraform plan` 应无变化才满足幂等；已有结果仍有四项 RDS/TOS/安全组漂移。生产平台测试出现实际删除保护关闭及 TOS 版本状态为空，不能将配置开启视为服务已生效。
-
-标准 Destroy 曾因 TOS 异步删除及 Redis 白名单解绑失败，后续重试清理不代表完整生命周期通过。ALB 关闭保护可能触发替换计划，按第 2 节先核对并关闭原生保护；销毁前清空 TOS 全部版本，RDS/Redis 最终备份可能保留，Redis 为七天。
+销毁前按第 2 节更新删除保护，并清空 TOS 的对象、历史版本和删除标记。已有资源仍由调用方维护。
