@@ -3,7 +3,8 @@ provider "volcenginecc" {
   endpoints = var.cloudcontrol_endpoint == null ? null : { cloudcontrolapi = var.cloudcontrol_endpoint }
 }
 module "web" {
-  source = "terraform-volcenginecc-modules/reference-architecture-web/volcenginecc"
+  source  = "terraform-volcenginecc-modules/reference-architecture-web/volcenginecc"
+  version = "~> 1.0"
 
   name        = var.deployment.name
   environment = "dev"

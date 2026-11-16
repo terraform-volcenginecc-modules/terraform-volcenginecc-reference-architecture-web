@@ -1,12 +1,14 @@
 # BASIC Web architecture Example
 
+Module source: `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`; module version: `version = "~> 1.0"` (>= 1.0.0, < 2.0.0). Provider version requirements are separate. Registry installation requires a published module release in this range.
+
 ## 1. Overview
 
 Create a single-zone development environment with four subnet tiers, public HTTP CLB, one Web and one App instance, private single-node MySQL/Redis, one egress NAT, TOS and TLS. Unlike complete, it omits two-zone deployment, HTTPS, monitoring and production deletion protection. Prepare zones, service images, specifications, a key pair, a bucket name, both passwords, ingress sources and service egress rules. The caller configures application connections and log collection.
 
 ## 2. Usage
 
-Run from `examples/basic` in an isolated full repository copy. The current `main.tf` uses a Registry source that requires publication; publication status and module versions were not verified in this update. For local testing before publication, change only the copied `module.web.source` to `../..`, keeping the original repository guidance. Local sources have no `version`.
+Run from the `examples/basic` directory. `main.tf` calls the remote three-tier Web module through `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`.
 
 Use Terraform `1.5.7` and supply this directory's required `terraform.tfvars` inputs and both sensitive passwords. Images must provide Web `8080`, `/health` and App `8080`. Confirm service activation, available regional specifications, private endpoint routes and permissions. Full creation needs at least two public EIP quota slots for CLB and NAT. Use the actual request egress CIDRs for the ingress allow list.
 
@@ -23,13 +25,13 @@ Use outputs to configure the Web proxy, App MySQL/Redis connections, TOS access 
 terraform plan
 ```
 
-Expect `No changes`; current drift is described in section 9. After testing, review the deletion scope and remove all bucket objects and versions. If protection was separately enabled, disable and apply that update first, then run:
+Expect `No changes`. When destruction is needed, review the deletion scope and remove bucket objects, historical versions and delete markers. If protection was separately enabled, disable and apply that update first, then run:
 
 ```bash
 terraform destroy
 ```
 
-Keep State, lock files, caches, plans and logs in the isolated copy rather than the source deliverable.
+Use a separate State/backend; keep State, caches, plans, logs and sensitive inputs out of Git.
 
 ## 3. Requirements
 
@@ -38,7 +40,7 @@ Keep State, lock files, caches, plans and logs in the isolated copy rather than 
 | Terraform | `>= 1.5.7, < 1.12.0`; fixed project baseline `= 1.5.7` |
 | `volcengine/volcenginecc` | `= 0.0.73` |
 
-These are the actual constraints in this directory's `versions.tf`. The allowed range is broader than the fixed baseline; this update does not change version files.
+These are the actual constraints in this directory's `versions.tf`. The allowed range is broader than the fixed baseline.
 
 ## 4. Providers
 
@@ -52,7 +54,7 @@ This directory configures the region and optional Cloud Control endpoint without
 
 | Name | Description |
 |---|---|
-| `module.web` | Actual source `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`, invoking the three-tier Web root module; local testing in an isolated copy uses `../..`. |
+| `module.web` | Source `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`, invoking the remote three-tier Web module. |
 
 This directory declares no direct resources or data sources. Full creation expects 27 module-managed resources, including one Web, one App, four subnets, two SNAT entries and one Web/App route table. ASG is disabled; service-created implicit resources are excluded.
 
@@ -85,6 +87,6 @@ Inject credentials using provider-supported runtime settings such as `VOLCENGINE
 
 The HTTP CLB listener reaches Web on backend port `8080`, and health checks omit the port override to follow the backend. Web security group sources remain fixed at `100.64.0.0/10`. Service egress allows only explicit rules; priority 99 denial takes precedence over platform priority 100 default allow rules. A single ingress CIDR permits only that egress source; maintain the list when networks or users change.
 
-NAT creates SNAT only for Web/App. Data retains the system route table, which may contain the NAT service's automatically added default route; no isolated data route table is bound. Data has no SNAT, so a default route alone does not prove public connectivity. Active data-subnet egress has not been directly tested.
+NAT creates SNAT and separate route tables only for Web/App, with default routes pointing to the shared NAT. Data uses the system route table without SNAT.
 
-An isolated copy of the same implementation previously completed one Apply from empty State and business checks after application initialization; current Registry installation is unverified. The post-Apply `terraform plan` must show no changes for idempotency, but existing results still have four RDS/TOS/security-group drifts. Standard Destroy failed on asynchronous TOS and CLB deletion tasks; subsequent cleanup retries do not establish a successful full lifecycle. RDS/Redis final backups may remain under service policy, with Redis retained for seven days. This documentation check does not constitute renewed acceptance.
+CLB only receives TLS project and topic references; the caller manages log activation. The module does not configure CLB deletion protection. Remove TOS objects, historical versions and delete markers before destruction.

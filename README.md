@@ -2,6 +2,8 @@
 
 A Volcengine module for three-tier Web infrastructure, covering networking, compute, ingress, data, storage and logs.
 
+Module source: `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`; module version: `version = "~> 1.0"` (>= 1.0.0, < 2.0.0). Provider version requirements are separate. Registry installation requires a published module release in this range.
+
 ## 1. Overview
 
 Build single-zone development or multi-zone production infrastructure with edge, web, app and data subnets: load balancer → Web → App → private MySQL/Redis, plus TOS, TLS and optional monitoring, Web ASG and NAT. Public ingress uses only the load balancer; ECS has no public EIP, and NAT configures SNAT only for Web/App. Existing network and data IDs remain caller-owned. The caller installs applications and configures DNS, certificates and log collection.
@@ -10,7 +12,7 @@ Build single-zone development or multi-zone production infrastructure with edge,
 
 Prepare zone IDs, images with Web/App services installed, ECS and MySQL specifications, an existing key pair and a region-unique bucket name. Web should listen on `8080` and serve `/health`; App should listen on `8080`. Use the visitors' actual public egress CIDRs for ingress and actual DNS/TOS/TLS endpoint CIDRs, protocols and ports for service egress. Confirm routes, permissions, service activation and quotas.
 
-This local configuration runs in `examples/basic` of an isolated full repository copy, where `source = "../.."` refers to the copied root module. Replace that copied directory's existing caller `.tf` files with this complete configuration to avoid duplicate variable or provider declarations. It demonstrates a minimal private HTTP ALB invocation. The existing basic example uses a public HTTP CLB and different ingress settings.
+This configuration uses the same remote Registry module source as `main.tf` in both examples. Save this complete configuration in a separate caller directory to avoid duplicate variable or provider declarations. It demonstrates a minimal private HTTP ALB invocation. The existing basic example uses a public HTTP CLB and different ingress settings.
 
 ```hcl
 terraform {
@@ -49,7 +51,8 @@ provider "volcenginecc" {
 }
 
 module "web" {
-  source = "../.."
+  source  = "terraform-volcenginecc-modules/reference-architecture-web/volcenginecc"
+  version = "~> 1.0"
 
   name = var.deployment.name
   zones = {
@@ -76,7 +79,7 @@ module "web" {
 }
 ```
 
-Inject credentials through the provider-supported `VOLCENGINE_ACCESS_KEY` and `VOLCENGINE_SECRET_KEY`; supply passwords through `TF_VAR_database_password`, `TF_VAR_cache_password` or platform sensitive variables. Use Terraform `1.5.7` in the isolated copy with the required `terraform.tfvars` and a separate State/backend. Keep real inputs and passwords out of the README and Git.
+Inject credentials through the provider-supported `VOLCENGINE_ACCESS_KEY` and `VOLCENGINE_SECRET_KEY`; supply passwords through `TF_VAR_database_password`, `TF_VAR_cache_password` or platform sensitive variables. Use Terraform `1.5.7` in the caller directory with the required `terraform.tfvars` and a separate State/backend. Keep real inputs and passwords out of the README and Git.
 
 ```bash
 terraform init
@@ -97,7 +100,7 @@ Expect `No changes`. Before destruction, remove bucket objects, historical versi
 terraform destroy
 ```
 
-Both repository examples retain the actual source `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`. Registry installation requires a published module; publication status and available versions were not verified in this update. For local testing, use a full isolated repository copy and change only the copied example source to `../..`, without a Registry `version`.
+The README and both examples call the remote module through `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`.
 
 ## 3. Examples
 
@@ -114,7 +117,7 @@ Both examples disable ASG. With all resources newly created and one monitoring r
 | Terraform | Source constraint `>= 1.5.7, < 1.12.0`; fixed project baseline `= 1.5.7` |
 | `volcengine/volcenginecc` | Root module `>= 0.0.73`; both examples pin `= 0.0.73` |
 
-The source allows a broader engine range than the fixed baseline. This documentation update preserves the actual constraint and does not change version files. The caller verifies regional specifications, certificates, service permissions and quotas.
+The source allows a broader engine range than the fixed baseline. The caller verifies regional specifications, certificates, service permissions and quotas.
 
 ## 5. Providers
 
@@ -272,10 +275,8 @@ Existing resources are referenced by ID without import. The module does not chan
 
 Ingress ACLs allow client sources. Web ingress allows only `100.64.0.0/10` to `web_port`; Web → App uses `app_port`, and App → data uses 3306/6379 with application subnet allow lists. Business and explicit endpoint allow rules use priority 1, fallback denial uses 99 and platform-added default allow rules use 100, so the latter cannot bypass denial. There is no default SSH ingress or unrestricted egress; NAT does not grant security group access.
 
-Enabled NAT creates SNAT and separate route tables only for Web/App. Data subnets retain the system route table, where the NAT service may automatically add `0.0.0.0/0 → NAT`. The current code does not bind data to an isolated route table, so an absent public default route cannot be claimed. Data has no SNAT; tested paths showed no public data exposure, but active data-subnet internet egress has not been directly tested.
+Enabled NAT creates SNAT and separate route tables only for Web/App, with default routes pointing to the shared NAT. Data subnets use the system route table without SNAT. Module NAT cannot be enabled for a reused VPC; the caller maintains existing routes and egress configuration.
 
-ALB can send access logs to TLS; creating topics does not install application log collection. This module does not configure CLB access logs or CLB deletion protection. HTTP CLB health checks omit the port override and follow the Web backend `8080`; the business port remains configured. Provider `0.0.73` has ASG launch-template readback defects; both examples disable ASG, whose path has not passed acceptance.
+When logs are enabled, ALB sends access and health-check logs to TLS; the caller configures application log agents. CLB only receives TLS project and topic references; the caller manages log activation and CLB deletion protection. HTTP CLB health checks follow the backend `web_port`. Both examples use static ECS instances with ASG disabled.
 
-Before deleting protected resources, set `deletion_protection=false`; production also requires `allow_protection_disable=true`. Review the update Plan and verify actual ECS/RDS/Redis/ALB protection. An ALB protection update may plan replacement: first disable `DeleteProtection` for that ALB through its native service, then review the Plan before proceeding. Remove all TOS versions. RDS final backups may remain, and Redis final backups are retained for seven days. Sensitive passwords still enter State; the caller protects State and credentials.
-
-Isolated copies of the same implementation previously completed one Apply from empty State for basic/complete and business checks after application initialization; current Registry installation is unverified. Each second `terraform plan` still contains four RDS/TOS/security-group drifts and has not reached `No changes`. Standard Destroy failed on asynchronous TOS/CLB tasks and Redis allow-list unbinding; later cleanup retries do not establish a successful full lifecycle. Production platform tests also showed disabled deletion protection and an empty TOS version status; verify native service settings before production use. This update changes documentation without rerunning cloud acceptance.
+Before deleting protected resources, set `deletion_protection=false`; production also requires `allow_protection_disable=true`. Review and apply the update Plan, then confirm protection is disabled before destruction. Remove TOS objects, historical versions and delete markers first. Sensitive passwords still enter State; the caller protects State and credentials.

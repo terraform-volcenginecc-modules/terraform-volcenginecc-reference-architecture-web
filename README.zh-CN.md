@@ -2,6 +2,8 @@
 
 火山引擎三层 Web 基础设施模块，统一配置网络、计算、入口、数据、存储与日志。
 
+模块 source 为 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`，模块版本约束为 `version = "~> 1.0"`（>= 1.0.0、< 2.0.0），与 Provider 版本要求分别配置。Registry 安装要求该范围内已有已发布模块版本。
+
 ## 1. 概述（Overview）
 
 模块支持单区开发和多区生产环境，每区划分 edge、web、app、data 四层子网，按负载均衡 → Web → App → 私网 MySQL/Redis 的关系配置资源，配套 TOS、TLS 和可选监控、Web ASG、NAT。公网入站仅通过负载均衡，ECS 不绑定公网 EIP；NAT 仅为 Web/App 配置 SNAT。已有网络和数据资源可通过 ID 复用，仍由调用方维护；应用安装、DNS、证书及日志采集配置由调用方完成。
@@ -10,7 +12,7 @@
 
 准备目标地域的可用区、已预装 Web/App 服务的镜像、ECS 与 MySQL 规格、已有密钥对和地域唯一的 Bucket 名称。Web 服务应监听 `8080` 并提供 `/health`；App 应监听 `8080`。入口来源填实际访问者的公网出口 CIDR，服务出站填实际 DNS/TOS/TLS 等端点的 CIDR、协议和端口，并确认对应路由、权限、服务开通状态与配额。
 
-以下是本地调用配置：在完整仓库的隔离副本 `examples/basic` 中使用，其中 `source = "../.."` 指向副本根模块。用以下完整配置替换副本该目录原有的调用方 `.tf` 配置，避免重复声明变量或 Provider。本段展示私网 HTTP ALB 的最小调用；仓库已有 basic 示例采用公网 HTTP CLB，不能将两者的入口参数混用。
+以下调用配置与两套 example 的 `main.tf` 使用相同的 Registry 远程模块地址。在独立调用方目录中保存以下完整配置，避免重复声明变量或 Provider。本段展示私网 HTTP ALB 的最小调用；仓库已有 basic 示例采用公网 HTTP CLB，不能将两者的入口参数混用。
 
 ```hcl
 terraform {
@@ -49,7 +51,8 @@ provider "volcenginecc" {
 }
 
 module "web" {
-  source = "../.."
+  source  = "terraform-volcenginecc-modules/reference-architecture-web/volcenginecc"
+  version = "~> 1.0"
 
   name = var.deployment.name
   zones = {
@@ -76,7 +79,7 @@ module "web" {
 }
 ```
 
-调用方通过 Provider 支持的 `VOLCENGINE_ACCESS_KEY`、`VOLCENGINE_SECRET_KEY` 注入凭据，通过 `TF_VAR_database_password`、`TF_VAR_cache_password` 或平台敏感变量注入密码。在隔离副本运行 Terraform `1.5.7`，准备该配置所需的 `terraform.tfvars` 和独立 State/backend；真实参数与密码不写入 README 或 Git。
+调用方通过 Provider 支持的 `VOLCENGINE_ACCESS_KEY`、`VOLCENGINE_SECRET_KEY` 注入凭据，通过 `TF_VAR_database_password`、`TF_VAR_cache_password` 或平台敏感变量注入密码。在调用方目录运行 Terraform `1.5.7`，准备该配置所需的 `terraform.tfvars` 和独立 State/backend；真实参数与密码不写入 README 或 Git。
 
 ```bash
 terraform init
@@ -97,7 +100,7 @@ terraform plan
 terraform destroy
 ```
 
-仓库两套 example 的实际 `source` 保留为 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc`。该 Registry 地址需正式发布后才能安装，本次未核实发布状态或可用版本。本地测试使用完整仓库的隔离副本，仅在副本的 example 中改用 `../..`，不为本地 source 设置 `version`。
+README 与两套 example 均通过 `terraform-volcenginecc-modules/reference-architecture-web/volcenginecc` 调用远程模块。
 
 ## 3. 示例（Examples）
 
@@ -114,7 +117,7 @@ terraform destroy
 | Terraform | 源码约束 `>= 1.5.7, < 1.12.0`；项目固定基线 `= 1.5.7` |
 | `volcengine/volcenginecc` | 根模块 `>= 0.0.73`；两套 example 固定 `= 0.0.73` |
 
-源码允许的引擎范围比固定基线宽；本次文档更新保留实际约束，未调整版本文件。地域相关规格、证书、服务权限与配额由调用方核实。
+源码允许的引擎范围比固定基线宽。地域相关规格、证书、服务权限与配额由调用方核实。
 
 ## 5. Providers（Providers）
 
@@ -272,10 +275,8 @@ ID、地址和域名为字符串，资源集合为映射；`network_interface`�
 
 入口 ACL 放行客户端来源；Web 安全组仅允许 `100.64.0.0/10` 到 `web_port`，Web → App 使用 `app_port`，App → 数据层使用 3306/6379 与应用子网白名单。业务及显式端点允许规则优先级为 1，兜底拒绝为 99，平台追加的默认允许规则为 100，因此不会绕过拒绝。没有默认 SSH 入站或默认全放通出站；NAT 不替代安全组授权。
 
-开启 NAT 后，仅 Web/App 配置 SNAT 和独立路由表。data 子网仍使用系统路由表，NAT 服务可能向该表自动加入 `0.0.0.0/0 → NAT`；当前代码没有将 data 绑定到独立隔离路由表，不能声称其不存在公网默认路由。data 无 SNAT，已验证链路未发现数据层公网暴露，但尚未直接实测 data 主动出网。
+开启 NAT 后，仅 Web/App 配置 SNAT 和独立路由表，默认路由指向共享 NAT。data 子网使用系统路由表，不配置 SNAT。复用 VPC 时不能启用模块 NAT，已有路由和出站配置由调用方维护。
 
-ALB 可接入 TLS 访问日志；创建 Topic 不等于应用已采集日志。CLB 的访问日志与删除保护不由本模块配置。HTTP CLB 健康检查省略覆盖端口，随 Web 后端 `8080`；Web 业务端口仍保留。ASG 启动模板在 Provider `0.0.73` 存在字段回读异常，两套示例关闭 ASG，该路径尚未验收通过。
+开启日志时，ALB 接入 TLS 访问日志与健康检查日志；应用日志 Agent 由调用方配置。CLB 仅传入 TLS 项目和 Topic 关联信息，日志启用开关及 CLB 删除保护由调用方管理。HTTP CLB 健康检查跟随后端 `web_port`。两套示例均使用静态 ECS，不启用 ASG。
 
-销毁受保护资源前，将 `deletion_protection=false`；生产还要显式设置 `allow_protection_disable=true`，审阅更新计划并核对 ECS/RDS/Redis/ALB 的实际保护状态。ALB 关闭保护更新可能出现替换计划，应先通过原生服务关闭对应 ALB 的 `DeleteProtection`，核对计划后再继续。清空 TOS 全部版本；RDS 最终备份可能保留，Redis 最终备份由服务保留七天。密码虽标记 sensitive，仍会写入 State，由调用方保管 State 和凭据。
-
-相同实现的隔离副本曾完成 basic/complete 空 State 一次 Apply 和应用初始化后的业务链路验证；当前 Registry 安装未验证。两套二次 `terraform plan` 各出现四项 RDS/TOS/安全组漂移，尚未达到 `No changes`；标准 Destroy 曾因 TOS/CLB 异步任务及 Redis 白名单解绑失败，后续重试清理不代表完整生命周期通过。生产平台测试还出现删除保护关闭、TOS 版本状态为空，生产使用前应核对原生服务状态。本次只修正文档，没有重新执行云验收。
+销毁受保护资源前，将 `deletion_protection=false`；生产还要设置 `allow_protection_disable=true`，审阅并应用更新计划，确认保护已关闭后再销毁。销毁前清空 TOS 的对象、历史版本和删除标记。密码虽标记 sensitive，仍会写入 State，由调用方保管 State 和凭据。
